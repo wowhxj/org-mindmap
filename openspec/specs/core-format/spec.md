@@ -2,9 +2,7 @@
 
 ## Purpose
 Define the persistence and block-level properties of the mind map within Org-mode.
-
 ## Requirements
-
 ### Requirement: Block Encapsulation
 The system SHALL encapsulate mind map data within Org-mode special blocks.
 
@@ -14,12 +12,17 @@ The system SHALL encapsulate mind map data within Org-mode special blocks.
 - THEN the system SHALL treat the content between these delimiters as a 2D mind map canvas.
 
 ### Requirement: Layout Configuration
-The system SHALL allow per-block configuration of layout algorithms via header properties.
+The system SHALL allow per-block configuration of layout algorithms and compaction via header properties.
 
 #### Scenario: Setting layout style
 - GIVEN a mind map block
-- WHEN the header property `:layout` is set to `left`, `compact`, or `centered`
-- THEN the renderer SHALL apply the corresponding algorithm to node positioning.
+- WHEN the header property `:layout` is set to `top` or `centered`
+- THEN the renderer SHALL apply the corresponding layout strategy to node positioning.
+
+#### Scenario: Setting compaction
+- GIVEN a mind map block
+- WHEN the header property `:compacted` is set to `t` or `nil`
+- THEN the renderer SHALL enable or disable the compaction algorithm accordingly.
 
 ### Requirement: Symbol Customization and Validation
 The system SHALL allow users to define multiple sets of symbols for connectors and root delimiters while preventing parsing collisions.
@@ -36,3 +39,4 @@ The system SHALL allow users to define multiple sets of symbols for connectors a
 - THE system SHALL NOT allow common hand-typeable symbols (`[`, `]`, `<`, `>`, `=`, `!`, `|`, `-`) to be used in connector or delimiter sets.
 - WHEN a user attempts to use a forbidden symbol
 - THEN the system SHALL signal an error or prevent the configuration from being applied.
+
