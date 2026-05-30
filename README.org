@@ -86,20 +86,21 @@ Fourth node ─╯               ╰─ Third node
 
 Here is the keys reference:
 
-| Command                     | Hotkey                       | Description                                                |
-|-----------------------------+------------------------------+------------------------------------------------------------|
-| =org-mindmap-edit-node=       | =M-RET=                        | edit node at point[fn:1]                                   |
-| =org-mindmap-insert-sibling=  | =RET=                          | add a node near the current one (as its sibling)           |
-| =org-mindmap-insert-child=    | =TAB=                          | add a child node to the current one                        |
-| =org-mindmap-move-down=       | =M-<down>=                     | move node one sibling down                                 |
-| =org-mindmap-move-up=         | =M-<up>=                       | move node one sibling up                                   |
-| =org-mindmap-promote=         | =M-<left>= or =M-<right>= [fn:2] | move node one level up, i.e. make it its parent's sibling  |
-| =org-mindmap-demote=          | =M-<left>= or =M-<right>= [fn:2] | move node one level down, i.e. make it its sibling's child |
-| =org-mindmap-delete-node=     |                              | insert a new map                                           |
-| =org-mindmap-switch-layout=   |                              | cycle between left, compact, and centered layouts          |
-| =org-mindmap-align=           |                              | re-align the mindmap                                       |
-| =org-mindmap-list-to-mindmap= |                              | converts an Org list at point into a mind map              |
-| =org-mindmap-to-list=         |                              | converts a mind map at point to an Org list                |
+| Command                       | Hotkey                       | Description                                                |
+|-------------------------------+------------------------------+------------------------------------------------------------|
+| =org-mindmap-edit-node=         | =M-RET=                        | edit node at point[fn:1]                                   |
+| =org-mindmap-insert-sibling=    | =RET=                          | add a node near the current one (as its sibling)           |
+| =org-mindmap-insert-child=      | =TAB=                          | add a child node to the current one                        |
+| =org-mindmap-move-down=         | =M-<down>=                     | move node one sibling down                                 |
+| =org-mindmap-move-up=           | =M-<up>=                       | move node one sibling up                                   |
+| =org-mindmap-promote=           | =M-<left>= or =M-<right>= [fn:2] | move node one level up, i.e. make it its parent's sibling  |
+| =org-mindmap-demote=            | =M-<left>= or =M-<right>= [fn:2] | move node one level down, i.e. make it its sibling's child |
+| =org-mindmap-delete-node=       |                              | insert a new map                                           |
+| =org-mindmap-switch-layout=     |                              | toggle between top and centered layouts                    |
+| =org-mindmap-switch-compaction= |                              | toggle node compaction (gap-filling) on/off                |
+| =org-mindmap-align=             |                              | re-align the mindmap                                       |
+| =org-mindmap-list-to-mindmap=   |                              | converts an Org list at point into a mind map              |
+| =org-mindmap-to-list=           |                              | converts a mind map at point to an Org list                |
 
 There are no specialized key maps for navigation: just use the usual text navigation keys.
 
@@ -143,10 +144,11 @@ If you have a list, you can transform it to mindmap with =org-mindmap-list-to-mi
 
 No formatting inside nodes text is supported yet.
 
-There are three layouts:
-1. =left=, the simplest and the default one
+There are two primary layouts, and a separate =compacted= compaction option:
+
+1. =top= (formerly =left=), the simplest and default layout, where the root is at the top of children.
 #+begin_src 
-,#+begin_mindmap :layout left
+,#+begin_mindmap :layout top
 ⏴⏵ ┬─ root ng ┬─ node b ┬─ node d
    │          │         ├─ node c
    │          │         ╰─ node e ── node f
@@ -156,20 +158,9 @@ There are three layouts:
 ,#+end_mindmap
 #+end_src
 
-2. =compact=, the one where nodes float up if there's space for them (like node a here).
+2. =centered=, where the root node is vertically centered against its children.
 #+begin_src 
-,#+begin_mindmap :layout compact
-⏴⏵ ┬─ root ng ┬─ node b ┬─ node d
-   │          ╰─ node a ├─ node c
-   │                    ╰─ node e ── node f
-   ╰─ disk c: ┬─ Windows
-              ╰─ Users
-,#+end_mindmap
-#+end_src
-
-3. =centered=, like above, but the root nodes are vertically centered against their children.
-#+begin_src 
-,#+begin_mindmap :layout centered
+,#+begin_mindmap :layout centered :compacted t
                         ╭─ node d
    ╭─ root ng ┬─ node b ┼─ node c
 ⏴⏵ ┤          ╰─ node a ╰─ node e ── node f
@@ -177,6 +168,8 @@ There are three layouts:
               ╰─ Users
 ,#+end_mindmap
 #+end_src
+
+To toggle compaction (which allows nodes to float up/down to occupy vacant space), use the =:compacted t= property or execute =org-mindmap-toggle-compaction=. Layout switching with =org-mindmap-switch-layout= cycles layout between =top= and =centered=.
 
 * Fonts
 I've tested the package with =Hack= font, and things seem to work fine.

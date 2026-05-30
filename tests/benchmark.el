@@ -64,7 +64,7 @@
 
       ;; Benchmark Layout
       (let ((st (float-time)))
-        (org-mindmap-build-tree-layout roots 'centered 1)
+        (org-mindmap-build-tree-layout roots 'centered 1 t)
         (setq t-layout (* 1000 (- (float-time) st))))
 
       ;; Benchmark Redrawing into temp buffer (simulating render-tree)

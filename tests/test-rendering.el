@@ -28,8 +28,12 @@
                    (layout (if (string-match ":layout \\([a-z]+\\)" heading)
                                (intern (match-string 1 heading))
                              'centered))
+                   (compacted (if (string-match ":compacted \\(t\\|nil\\)" heading)
+                                  (string= (match-string 1 heading) "t")
+                                ;; Default: legacy centered tests expect compaction
+                                (eq layout 'centered)))
                    (root (org-mindmap-test-build-ast sexp nil nil))
-                   (actual-output (substring-no-properties (org-mindmap-render-tree (list root) layout 1)))
+                   (actual-output (substring-no-properties (org-mindmap-render-tree (list root) layout 1 compacted)))
                    (expected-output nil))
               (goto-char sexp-end)
               (when (re-search-forward "^[ \t]*#\\+begin_expected" nil t)

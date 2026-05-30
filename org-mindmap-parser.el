@@ -222,7 +222,7 @@ VISITED marks the consumed cells."
                (leftmost-col (if (> dx 0) start-col (+ curr-col 1)))
                (node (when (not (string= trimmed ""))
                        (org-mindmap-parser-make-node
-                        :id (cl-gensym "node")
+                        :id (gensym "node")
                         :text trimmed
                         :parent parent
                         :depth (if parent (1+ (org-mindmap-parser-node-depth parent)) 0)
@@ -304,7 +304,7 @@ VISITED keeps track of visited locations."
                            (text (string-trim (match-string 1 line))))
                        (org-mindmap-parser--debug "Found explicit root node: %s at (%d, %d)" text row col-start)
                        (setq explicit-root (org-mindmap-parser-make-node
-                                            :id (cl-gensym "node")
+                                            :id (gensym "node")
                                             :text text
                                             :depth 0
                                             :row row
@@ -338,7 +338,7 @@ VISITED keeps track of visited locations."
       (let ((r (car implicit-conn-root))
             (c (cadr implicit-conn-root)))
         (org-mindmap-parser-make-node
-         :id (cl-gensym "node")
+         :id (gensym "node")
          :text ""
          :depth 0
          :row r

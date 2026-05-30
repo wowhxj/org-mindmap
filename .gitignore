@@ -2,4 +2,5 @@
 *#
 *.elc
 *.orig
+*.rej
 *-*-*-*.org
