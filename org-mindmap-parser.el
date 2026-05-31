@@ -57,9 +57,10 @@ Indices: 0:Horizontal, 1:Vertical, 2:T-Down, 3:T-Up, 4:T-Right, 5:T-Left,
                        character))
   :group 'org-mindmap)
 
-(defcustom org-mindmap-parser-root-delimiters '(("⏴" . "⏵")
-                                                ("【" . "】")
-                                                ("«" . "»"))
+(defcustom org-mindmap-parser-root-delimiters '(("«" . "»")
+                                                ("“" . "”")
+                                                ("⏴" . "⏵")
+                                                ("【" . "】"))
   "List of root delimiter pairs (cons cells).
 The first pair is used for rendering.
 Use symbols you don't directly type, such as unicode plotting characters."
@@ -186,6 +187,14 @@ Starts from ROW and COL."
         (org-mindmap-parser--debug "Glue failed: no snap found within recovery drift."))
       found)))
 
+(defun org-mindmap-parser--is-visited (row col visited)
+  "Check if a location at ROW and COL was VISITED by the parser."
+  (gethash (+ (* row 1000) col) visited))
+
+(defun org-mindmap-parser--mark-visited (row col visited)
+  "Mark a location at ROW and COL as VISITED by the parser, so that it wouldn't consume it twice."
+  (puthash (+ (* row 1000) col) t visited))
+
 (defun org-mindmap-parser--consume-spaces (lines row col dir visited)
   "Greedily consume non-connector characters in LINES in DIR to form a node label.
 Starts from ROW and COL.  VISITED marks the consumed cells."
@@ -196,7 +205,7 @@ Starts from ROW and COL.  VISITED marks the consumed cells."
       (let (char)
         (while (and (setq char (org-mindmap-parser--grid-get lines row curr-col))
                     (org-mindmap-parser--is-whitespace char))
-          (puthash (+ (* row 1000) curr-col) t visited)
+          (org-mindmap-parser--mark-visited row curr-col visited)
           (setq curr-col (+ curr-col dx)))
         curr-col))))
 
@@ -241,7 +250,7 @@ VISITED marks the consumed cells."
 Starts from ROW and COL in DIR.  Assigns PARENT and SIDE.
 VISITED keeps track of visited locations."
   (cond
-   ((gethash (+ (* row 1000) col) visited)
+   ((org-mindmap-parser--is-visited row col visited)
     (org-mindmap-parser--debug "Stumbled on visited cell at (%d, %d)" row col))
    ((not (org-mindmap-parser--grid-get lines row col))
     (org-mindmap-parser--debug "Reached boundaries at (%d, %d)" row col))

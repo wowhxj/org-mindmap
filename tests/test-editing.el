@@ -36,52 +36,52 @@
 
 (ert-deftest org-mindmap-test-move-up ()
   "Test moving a node up."
-  (let ((initial "⏴⏵ ┬─ Node A\n   ╰─ Node B"))
+  (let ((initial "«» ┬─ Node A\n   ╰─ Node B"))
     (with-org-mindmap-test initial "Node B" #'org-mindmap-move-up
                            (should (string= (org-mindmap-test-get-content)
-                                            "⏴⏵ ┬─ Node B\n   ╰─ Node A")))))
+                                            "«» ┬─ Node B\n   ╰─ Node A")))))
 
 (ert-deftest org-mindmap-test-move-down ()
   "Test moving a node down."
-  (let ((initial "⏴⏵ ┬─ Node A\n   ╰─ Node B"))
+  (let ((initial "«» ┬─ Node A\n   ╰─ Node B"))
     (with-org-mindmap-test initial "Node A" #'org-mindmap-move-down
                            (should (string= (org-mindmap-test-get-content)
-                                            "⏴⏵ ┬─ Node B\n   ╰─ Node A")))))
+                                            "«» ┬─ Node B\n   ╰─ Node A")))))
 
 (ert-deftest org-mindmap-test-promote ()
   "Test promoting a node."
-  (let ((initial "⏴⏵ ── Child"))
+  (let ((initial "«» ── Child"))
     (with-org-mindmap-test initial "Child" (lambda () (ignore-errors (org-mindmap-promote)))
                            ;; Promotion of top-level child currently results in a new root if not side-swapping
                            (should (string-match-p "Child" (org-mindmap-test-get-content))))))
 
 (ert-deftest org-mindmap-test-demote ()
   "Test demoting a node."
-  (let ((initial "⏴⏵ ┬─ Parent\n   ╰─ Child"))
+  (let ((initial "«» ┬─ Parent\n   ╰─ Child"))
     (with-org-mindmap-test initial "Child" #'org-mindmap-demote
                            (should (string= (org-mindmap-test-get-content)
-                                            "⏴⏵ ── Parent ── Child")))))
+                                            "«» ── Parent ── Child")))))
 
 (ert-deftest org-mindmap-test-insert-sibling ()
   "Test inserting a sibling."
-  (let ((initial "⏴⏵ ── RootChild"))
+  (let ((initial "«» ── RootChild"))
     (with-org-mindmap-test initial "RootChild" (lambda () (org-mindmap-insert-sibling "New Sibling"))
                            (should (string-match-p "New Sibling" (org-mindmap-test-get-content)))
                            (should (string-match-p "RootChild" (org-mindmap-test-get-content))))))
 
 (ert-deftest org-mindmap-test-insert-child ()
   "Test inserting a child."
-  (let ((initial "⏴⏵"))
-    (with-org-mindmap-test initial "⏴⏵" (lambda () (org-mindmap-insert-child "New Child"))
-                           (should (string-match-p "⏴⏵ ── New Child" (org-mindmap-test-get-content))))))
+  (let ((initial "«»"))
+    (with-org-mindmap-test initial "«»" (lambda () (org-mindmap-insert-child "New Child"))
+                           (should (string-match-p "«» ── New Child" (org-mindmap-test-get-content))))))
 
 (ert-deftest org-mindmap-test-delete-node ()
   "Test deleting a node."
-  (let ((initial "⏴⏵ ┬─ Node A\n   ╰─ Node B")
+  (let ((initial "«» ┬─ Node A\n   ╰─ Node B")
         (org-mindmap-confirm-delete nil))
     (with-org-mindmap-test initial "Node A" #'org-mindmap-delete-node
                            (should (string= (org-mindmap-test-get-content)
-                                            "⏴⏵ ── Node B")))))
+                                            "«» ── Node B")))))
 
 (ert-deftest org-mindmap-test-move-up-boundary ()
   "Test that moving up the first sibling raises an error."
@@ -99,7 +99,7 @@
 
 (ert-deftest org-mindmap-test-promote-root ()
   "Test that promoting a root node raises an error."
-  (let ((initial "⏴ Root ⏵"))
+  (let ((initial "« Root »"))
     (with-org-mindmap-test initial "Root"
                            (lambda ()
                              (should-error (org-mindmap-promote))))))
@@ -113,12 +113,12 @@
 
 (ert-deftest org-mindmap-test-promote-subtree-across-root ()
   "Test that promoting a node with children across the root updates children's sides."
-  (let ((initial "⏴⏵ ── Parent ── Child"))
+  (let ((initial "«» ── Parent ── Child"))
     ;; Start with Parent on the right. Promote it to the left.
     (with-org-mindmap-test initial "Parent" #'org-mindmap-promote
                            (let ((content (org-mindmap-test-get-content)))
                              ;; Parent should now be on the left
-                             (should (string-match-p "Child ── Parent ── ⏴⏵" content))
+                             (should (string-match-p "Child ── Parent ── «»" content))
                              ;; Verify parser sees both as left
                              (let* ((region (org-mindmap-parser-get-region))
                                     (roots (org-mindmap-parser-parse-region (car region) (cdr region)))
@@ -129,7 +129,7 @@
 
 (ert-deftest org-mindmap-test-promote-side-swap-inheritance ()
   "Test that promoting a top-level node from the right to the left side updates subtree sides."
-  (let ((initial "LeftParent ── ⏴⏵ ── RightParent ── RightChild"))
+  (let ((initial "LeftParent ── «» ── RightParent ── RightChild"))
     ;; Move RightParent to the left side using promote
     (with-org-mindmap-test initial "RightParent" #'org-mindmap-promote
                            (let ((content (org-mindmap-test-get-content)))
@@ -147,7 +147,7 @@
 
 (ert-deftest org-mindmap-test-promote-deep-inheritance ()
   "Test that promoting a node from depth 3 to depth 2 inherits grandparent's side."
-  (let ((initial "⏴⏵ ── LeftParent ── LeftChild ── SubChild ── Leaf"))
+  (let ((initial "«» ── LeftParent ── LeftChild ── SubChild ── Leaf"))
     ;; Note: LeftParent is initially on the right side in this string
     ;; Promote SubChild to be sibling of LeftChild (under LeftParent)
     (with-org-mindmap-test initial "SubChild" #'org-mindmap-promote
@@ -170,7 +170,7 @@
 
 (ert-deftest org-mindmap-test-return-on-node ()
   "Test that RET on a child node inserts a sibling."
-  (let ((initial "⏴ Root ⏵ ── Child"))
+  (let ((initial "« Root » ── Child"))
     (with-org-mindmap-test initial "Child" #'org-mindmap-return
                            (let ((content (buffer-substring-no-properties (point-min) (point-max))))
                              (should (string-match-p "Child" content))
@@ -179,7 +179,7 @@
 
 (ert-deftest org-mindmap-test-return-on-root ()
   "Test that RET on root node inserts a child."
-  (let ((initial "⏴ Root ⏵"))
+  (let ((initial "« Root »"))
     (with-org-mindmap-test initial "Root" #'org-mindmap-return
                            (let ((content (buffer-substring-no-properties (point-min) (point-max))))
                              (should (string-match-p "Root" content))
