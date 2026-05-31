@@ -209,41 +209,49 @@ Starts from ROW and COL.  VISITED marks the consumed cells."
           (setq curr-col (+ curr-col dx)))
         curr-col))))
 
-(defun org-mindmap-parser--consume-node (lines row col dir parent visited side)
-  "Greedily consume non-connector characters in LINES in DIR to form a node label.
-Starts from ROW and COL.  SIDE is assigned to the created node with PARENT.
-VISITED marks the consumed cells."
+(defun org-mindmap-parser--consume-text (lines row col dir visited)
+  "Greedily consume ..."
   (let* ((dx (car dir))
          (chars nil)
          (start-col (org-mindmap-parser--consume-spaces lines row col dir visited))
          (curr-col start-col))
-    (org-mindmap-parser--debug "Looking for a node at (%d, %d)" row start-col)
     (if (= dx 0)
         (cons nil (cons row col))
       (let (char)
         (while (and (setq char (org-mindmap-parser--grid-get lines row curr-col))
-                    (not (org-mindmap-parser--is-connector char)))
+                    (not (org-mindmap-parser--is-connector char))
+                    (not (org-mindmap-parser--is-visited row curr-col visited)))
           (push char chars)
-          (puthash (+ (* row 1000) curr-col) t visited)
+          (org-mindmap-parser--mark-visited row curr-col visited)
           (setq curr-col (+ curr-col dx)))
         (let* ((final-chars (if (> dx 0) (nreverse chars) chars))
                (trimmed (string-trim (apply #'string final-chars)))
-               (leftmost-col (if (> dx 0) start-col (+ curr-col 1)))
-               (node (when (not (string= trimmed ""))
-                       (org-mindmap-parser-make-node
-                        :id (gensym "node")
-                        :text trimmed
-                        :parent parent
-                        :depth (if parent (1+ (org-mindmap-parser-node-depth parent)) 0)
-                        :row row
-                        :col leftmost-col
-                        :width (abs (- curr-col col))
-                        :side side))))
-          (when node
-            (org-mindmap-parser--debug "Found node: '%s' at (%d, %d)" trimmed row leftmost-col)
-            (when parent
-              (push node (org-mindmap-parser-node-children parent))))
-          (cons node (cons row curr-col)))))))
+               (leftmost-col (if (> dx 0) start-col (+ curr-col 1))))
+          (cons trimmed (cons leftmost-col curr-col)))))))
+
+(defun org-mindmap-parser--consume-node (lines row col dir parent visited side)
+  "Greedily consume non-connector characters in LINES in DIR to form a node label.
+Starts from ROW and COL.  SIDE is assigned to the created node with PARENT.
+VISITED marks the consumed cells."
+  (let* ((result (org-mindmap-parser--consume-text lines row col dir visited))
+         (text (car result))
+         (leftmost-col (cadr result))
+         (curr-col (cddr result))
+         (node (when (not (string= text ""))
+                 (org-mindmap-parser-make-node
+                  :id (gensym "node")
+                  :text text
+                  :parent parent
+                  :depth (if parent (1+ (org-mindmap-parser-node-depth parent)) 0)
+                  :row row
+                  :col leftmost-col
+                  :width (abs (- curr-col col))
+                  :side side))))
+    (when node
+      (org-mindmap-parser--debug "Found node: '%s' at (%d, %d)" text row leftmost-col)
+      (when parent
+        (push node (org-mindmap-parser-node-children parent))))
+    (cons node (cons row curr-col))))
 
 (defun org-mindmap-parser--go (lines row col dir parent visited side)
   "Recursive 2D walker following connectors and nodes in LINES.
