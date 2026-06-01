@@ -20,6 +20,23 @@
         (funcall print-node-fn root 4)))
     (buffer-string)))
 
+(defun format-error (err)
+  "Format an error plist into a string."
+  (let* ((line (line-number-at-pos))
+         (col (current-column))
+         (error-props
+          (list :error (substring-no-properties (error-message-string err))
+                :line line
+                :column col
+                :context (buffer-substring-no-properties
+                          (max (point-min) (- (point) 30))
+                          (min (point-max) (+ (point) 30))))))
+    (format "ERROR: %s\n- Position: Line %d, Col %d\n- Context: ...%s..."
+            (plist-get error-props :error)
+            (plist-get error-props :line)
+            (plist-get error-props :column)
+            (plist-get error-props :context))))
+
 (defun test-parse-all ()
   (let ((failed 0)
         (passed 0)
@@ -52,7 +69,7 @@
                   (setq actual-output (format-nodes-as-string roots)))
               (error
                (setq elapsed (* 1000.0 (- (float-time) start-parse)))
-               (setq actual-output (format "ERROR: %S\n" err)))))
+               (setq actual-output (format-error err)))))
 
           ;; Look for expected block
           (save-excursion

@@ -1,8 +1,8 @@
 ## 1. Configuration and Defcustoms
 
-- [ ] 1.1 Add `org-mindmap-default-max-width` defcustom (integer or nil, default nil) in `org-mindmap.el`
-- [ ] 1.2 Add `org-mindmap-default-wrap-leaves` defcustom (boolean, default t) in `org-mindmap.el`
-- [ ] 1.3 Update `org-mindmap--parse-properties` to parse `:max-width` (integer), `:adaptive-max-width` (boolean), `:wrap-leaves` (boolean) from block header
+- [X] 1.1 Add `org-mindmap-default-max-width` defcustom (integer or nil, default nil) in `org-mindmap.el`
+- [X] 1.2 Add `org-mindmap-default-wrap-leaves` defcustom (boolean, default t) in `org-mindmap.el`
+- [X] 1.3 Update `org-mindmap--parse-properties` to parse `:max-width` (integer), `:adaptive-max-width` (boolean), `:wrap-leaves` (boolean) from block header
 
 ## 2. Text Wrapping Function
 
@@ -21,13 +21,13 @@
 
 ## 3. Parser Post-Pass
 
-- [ ] 3.1 Implement `org-mindmap-parser--join-continuations` (roots lines-array visited)
+- [X] 3.1 Implement `org-mindmap-parser--join-continuations` (roots lines-array visited)
   - Walk the tree of parsed nodes
   - For each node, look at `row+1` at the node's `col`
   - If unvisited non-connector text exists there, consume it rightward and join with space
   - Repeat for subsequent rows until hitting a visited cell, connector, or boundary
   - Mark consumed cells as visited
-- [ ] 3.2 Invoke `org-mindmap-parser--join-continuations` from `org-mindmap-parser-parse-region` before returning roots
+- [X] 3.2 Invoke `org-mindmap-parser--join-continuations` from `org-mindmap-parser-parse-region` before returning roots
 
 ## 4. Multi-Row Occupancy
 

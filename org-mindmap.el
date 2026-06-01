@@ -57,6 +57,16 @@ a denser layout.  When nil, children are stacked sequentially."
   :type 'boolean
   :group 'org-mindmap)
 
+(defcustom org-mindmap-default-max-width nil
+  "Default maximal width limit for node text soft wrapping (nil for no wrapping)."
+  :type 'integer
+  :group 'org-mindmap)
+
+(defcustom org-mindmap-default-wrap-leaves t
+  "Default value for leaves wrapping."
+  :type 'boolean
+  :group 'org-mindmap)
+
 (defcustom org-mindmap-protect-connectors nil
   "Make connectors read-only."
   :type 'boolean
@@ -440,7 +450,13 @@ Handles legacy migration of :layout left/compact/centered."
                (t
                 (setq props (plist-put props :layout val)))))
              ((eq key :compacted)
-              (setq props (plist-put props :compacted (not (string= val "nil")))))
+              (setq props (plist-put props key (not (string= val "nil")))))
+             ((eq key :max-width)
+              (setq props (plist-put props key (string-to-number val))))
+             ((eq key :adaptive-max-width)
+              (setq props (plist-put props key (not (string= val "nil")))))
+             ((eq key :wrap-leaves)
+              (setq props (plist-put props key (not (string= val "nil")))))
              (t
               (setq props (plist-put props key val)))))
           (setq args-string (substring args-string (match-end 0))))

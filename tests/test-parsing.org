@@ -434,7 +434,7 @@ Root1 ┬─ A
 Root2 ╰─ B
 #+end_mindmap
 #+begin_expected
-    - Root1 (row:0, col:0, side:nil)
+    - Root1 Root2 (row:0, col:0, side:nil)
       - A (row:0, col:9, side:right)
       - B (row:1, col:9, side:right)
 #+end_expected
@@ -462,3 +462,21 @@ Root2 ╰─ B
         - Node B (row:2, col:12, side:right)
 #+end_expected
 
+* Test Case 22: Miltiline nodes
+#+begin_mindmap
+             ╭─ Режиссёры ── Журнал
+« New Wave » ┤             Cahiers
+             │             du Cinema
+             ╰─ Связи ── Итальянский ── надо снимать ┬─ на улицах
+                         неореализм                  ╰─ не в павильонах
+#+end_mindmap
+#+begin_expected
+    - New Wave (row:1, col:0, side:nil)
+      - Режиссёры (row:0, col:16, side:right)
+        - Журнал Cahiers du Cinema (row:0, col:29, side:right)
+      - Связи (row:3, col:16, side:right)
+        - Итальянский неореализм (row:3, col:25, side:right)
+          - надо снимать (row:3, col:40, side:right)
+            - на улицах (row:3, col:56, side:right)
+            - не в павильонах (row:4, col:56, side:right)
+#+end_expected
