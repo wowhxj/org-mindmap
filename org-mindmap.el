@@ -157,6 +157,10 @@ including its horizontal connector from parent."
   (cl-loop for child in (org-mindmap-parser-node-children node)
            append (cons child (org-mindmap--descendants child))))
 
+(defun org-mindmap--subtree (node)
+  "Return NODE subtree (the node itself and its children, grandchildren etc) from both sides of the tree."
+  (cons node (org-mindmap--descendants node)))
+
 (defun org-mindmap--side-descendants (node side)
   "Return NODE descendants (children, grandchildren etc) from the given tree SIDE."
   (cl-loop for child in (org-mindmap--side-children node side)
@@ -227,64 +231,67 @@ OCCUPIED-MAP is a hash table mapping rows to lists of occupied columns."
     (dolist (n right-descendants) (incf (org-mindmap-parser-node-row n) r-shift))
     root-row))
 
+;; TODO
+(defun org-mindmap--shift-subtree (node prev-node occupied-map compacted spacing)
+  "Shift node subtree"
+  (let* ((subtree (org-mindmap--subtree node))
+         (delta
+          ;; Shift the node tree vertically:
+          ;; ... compute vertical shift
+          (if compacted
+              ;; ... if compacting, shift the tree upwards if there's vacant space
+              (let* ((row (org-mindmap-parser-node-row node))
+                     ;; this prevents nodes from reordering
+                     (delta (if prev-node (+ (org-mindmap-parser-node-row prev-node) 1 (- row)) 0))
+                     (subtree-occ-rows (org-mindmap--get-occupied-rows subtree spacing)))
+                (while (org-mindmap--check-overlap-subtree subtree-occ-rows delta occupied-map)
+                  (incf delta))
+                delta)
+            ;; ... otherwise just take the the next unoccupied row
+            (setq delta 0)
+            (when prev-node
+              (setq delta (1+ (org-mindmap--max-row (org-mindmap--subtree prev-node)))))
+            delta)))
+    ;; ... shift each grandchild node vertically in the subtree tree
+    (dolist (n subtree) (incf (org-mindmap-parser-node-row n) delta))
+    ;; Mark the tree location in the occupied map.
+    (org-mindmap--update-occupied-map occupied-map subtree spacing)))
+
 (defun org-mindmap-build-subtree (node col layout spacing compacted)
   "Recursively calculate rows and cols for NODE and its children.
 Requires COL, LAYOUT, SPACING, and COMPACTED."
   (setf (org-mindmap-parser-node-col node) col)
-  (if-let* ((display-text (org-mindmap--node-display-text node))
-            (text-len (string-width display-text)))
-      ;; If the node has children, build a tree for each children and combine the trees.
-      (let* ((occupied-map (make-hash-table :test 'eq)))
-        ;; For each side of the tree:
-        ;; (only root node may have two sides, so most of the time there will be only one side)
-        (dolist (side (list 'left 'right))
-          (let ((side-children (org-mindmap--side-children node side))
-                (prev-child-row nil)
-                (side-descendants nil))
-            ;; For each child node:
-            (dolist (child side-children)
-              (let* ((child-len (string-width (org-mindmap--node-display-text child)))
-                     (child-col (if (eq side 'left) (- col 4 child-len) (+ col text-len 4))))
-                ;; With child nodes tree:
-                (cl-destructuring-bind (grandchild-min-row _grandchild-max-row grandchildren)
-                    (org-mindmap-build-subtree child child-col layout spacing compacted)
-                  (let* ((c-root-row (org-mindmap-parser-node-row child))
-                         (min-delta (if prev-child-row (+ prev-child-row 1 (- c-root-row)) (- grandchild-min-row)))
-                         (delta min-delta))
-                    ;; Shift the child tree vertically:
-                    ;; ... compute vertical shift
-                    (if compacted
-                        ;; ... shift the tree upwards if there's vacant space
-                        (let ((grandchildren-occ-rows (org-mindmap--get-occupied-rows grandchildren spacing)))
-                          (while (org-mindmap--check-overlap-subtree grandchildren-occ-rows delta occupied-map)
-                            (cl-incf delta)))
-                      ;; ??
-                      (setq delta (- grandchild-min-row))
-                      (when side-descendants
-                        (incf delta (+ (org-mindmap--max-row side-descendants) 1))))
-                    ;; ... shift each grandchild node vertically in the grandchildren tree
-                    (dolist (n grandchildren) (incf (org-mindmap-parser-node-row n) delta))
-                    ;; ... store newly found nodes to the accumulators.
-                    (setq side-descendants (append side-descendants grandchildren))
-                    ;; Mark the tree location in the occupied map.
-                    (org-mindmap--update-occupied-map occupied-map grandchildren spacing)
-                    (setq prev-child-row (org-mindmap-parser-node-row child))))))))
-        ;; Set the node row:
-        (setf (org-mindmap-parser-node-row node)
-              (if (eq layout 'centered)
-                  ;; For centered layout, recenter the whole tree:
-                  (org-mindmap--center-subtree node)
-                ;; For top layout, take the top children rows:
-                (org-mindmap--min-row (org-mindmap--descendants node))))
-        ;; Move the whole tree upwards so that it starts from the 0th row.
-        (let* ((all-nodes (append (list node) (org-mindmap--descendants node)))
-               (min-row (org-mindmap--min-row all-nodes))
-               (max-row (org-mindmap--max-row all-nodes)))
-          (dolist (n all-nodes) (decf (org-mindmap-parser-node-row n) min-row))
-          (list 0 (- max-row min-row) all-nodes)))
-    ;; If the node has no children, return a "tree" of one row.
-    (setf (org-mindmap-parser-node-row node) 0)
-    (list 0 0 (list node))))
+  (let* ((display-text (org-mindmap--node-display-text node))
+         (text-len (string-width display-text))
+         (occupied-map (make-hash-table :test 'eq)))
+    ;; For each side of the tree:
+    ;; (only root node may have two sides, so most of the time there will be only one side)
+    ;; If the node has children, build a tree for each children and combine the trees.
+    (dolist (side (list 'left 'right))
+      (let ((children (org-mindmap--side-children node side))
+            (prev-child nil))
+        ;; For each child node:
+        (dolist (child children)
+          (let* ((child-len (string-width (org-mindmap--node-display-text child)))
+                 (child-col (if (eq side 'left) (- col 4 child-len) (+ col text-len 4))))
+            ;; With child nodes tree:
+            (org-mindmap-build-subtree child child-col layout spacing compacted)
+            (org-mindmap--shift-subtree child prev-child occupied-map compacted spacing)
+            ;; ... store newly found nodes to the accumulators.
+            (setq prev-child child)))))
+    ;; Set the node row:
+    (setf (org-mindmap-parser-node-row node)
+          (if (eq layout 'centered)
+              ;; For centered layout, recenter the whole tree:
+              (org-mindmap--center-subtree node)
+            ;; For top layout, take the top children rows:
+            (org-mindmap--min-row (org-mindmap--descendants node))))
+    ;; Move the whole tree upwards so that it starts from the 0th row.
+    (let* ((all-nodes (org-mindmap--subtree node))
+           (min-row (org-mindmap--min-row all-nodes))
+           (max-row (org-mindmap--max-row all-nodes)))
+      (dolist (n all-nodes) (decf (org-mindmap-parser-node-row n) min-row))
+      (list 0 (org-mindmap--max-row all-nodes) all-nodes))))
 
 (defun org-mindmap--min-column (nodes)
   "Find minimal column number among NODES if any, otherwise return 0."
