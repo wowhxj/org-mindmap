@@ -462,13 +462,13 @@ Root2 ╰─ B
         - Node B (row:2, col:12, side:right)
 #+end_expected
 
-* Test Case 22: Miltiline nodes
+* Test Case 22: Miltiline nodes with horizontral shifts
 #+begin_mindmap
              ╭─ Режиссёры ── Журнал
 « New Wave » ┤             Cahiers
              │             du Cinema
              ╰─ Связи ── Итальянский ── надо снимать ┬─ на улицах
-                         неореализм                  ╰─ не в павильонах
+                           неореализм                ╰─ не в павильонах
 #+end_mindmap
 #+begin_expected
     - New Wave (row:1, col:0, side:nil)

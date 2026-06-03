@@ -231,9 +231,9 @@ OCCUPIED-MAP is a hash table mapping rows to lists of occupied columns."
     (dolist (n right-descendants) (incf (org-mindmap-parser-node-row n) r-shift))
     root-row))
 
-;; TODO
 (defun org-mindmap--shift-subtree (node prev-node occupied-map compacted spacing)
-  "Shift NODE subtree upwards and update OCCUPIED-MAP.  Requires PREV-NODE (may be nil), COMPACTED, SPACING."
+  "Shift NODE subtree upwards and update OCCUPIED-MAP.
+Requires PREV-NODE (may be nil), COMPACTED, SPACING."
   (let* ((subtree (org-mindmap--subtree node))
          (delta
           ;; Shift the node tree vertically:
