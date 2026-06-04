@@ -6,13 +6,13 @@
 
 ## 2. Text Wrapping Function
 
-- [ ] 2.1 Implement `org-mindmap--wrap-text` (text max-width) → list of lines
+- [X] 2.1 Implement `org-mindmap--wrap-text` (text max-width) → list of lines
   - Scan text character by character, accumulating column width via `string-width`
   - Track last space position; when accumulated width exceeds max-width, split at last space
   - Handle CJK characters (2-column width) correctly
   - Handle text with no spaces (return single line as-is)
   - Handle nil max-width (return single line unchanged)
-- [ ] 2.2 Implement `org-mindmap--node-display-lines` (node max-width wrap-leaves) → list of lines
+- [X] 2.2 Implement `org-mindmap--node-display-lines` (node max-width wrap-leaves) → list of lines
   - Calls `org-mindmap--node-display-text` then `org-mindmap--wrap-text`
   - Respects `wrap-leaves`: if node has no children and wrap-leaves is nil, return single-line
   - Root nodes: wraps only the inner raw text, not the delimiters (delimiters stay on first line)
@@ -81,7 +81,7 @@
 
 - [ ] 9.1 Update `tests/test-rendering.el` test harness to support `max-width` and `wrap-leaves` parameters
 - [ ] 9.2 Add test cases: unwrapped (baseline), soft-wrap with various max-width values, wrap-leaves nil, single-word node, CJK text, empty text, text shorter than max-width
-- [ ] 9.3 Add parser test cases: single-line (unchanged), multi-line continuation joining, continuation adjacent to other branch
+- [X] 9.3 Add parser test cases: single-line (unchanged), multi-line continuation joining, continuation adjacent to other branch
 - [ ] 9.4 Run all existing rendering tests to verify no regressions with `:max-width nil` (default)
 
 ## 10. Cleanup

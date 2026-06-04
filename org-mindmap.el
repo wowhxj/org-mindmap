@@ -62,6 +62,11 @@ a denser layout.  When nil, children are stacked sequentially."
   :type 'integer
   :group 'org-mindmap)
 
+(defcustom org-mindmap-default-adaptive-max-width nil
+  "Determine max-width from window width by default (equivalent to setting :adaptive-max-width t for all the maps)."
+  :type 'boolean
+  :group 'org-mindmap)
+
 (defcustom org-mindmap-default-wrap-leaves t
   "Default value for leaves wrapping."
   :type 'boolean
@@ -123,12 +128,37 @@ Ensures properties are not sticky to allow editing node text at the boundary."
     (insert (org-mindmap--propertize-text " "))
     (move-to-column col)))
 
+;; Text rendering
+(defun org-mindmap--node-display-text (node)
+  "Return the actual string to be displayed for NODE, including delimiters if root."
+  (let ((raw-text (org-mindmap-parser-node-text node)))
+    (if (null (org-mindmap-parser-node-parent node))
+        (let ((pair (car org-mindmap-parser-root-delimiters)))
+          (if (string= raw-text "")
+              (concat (car pair) (cdr pair))
+            (concat (car pair) " " raw-text " " (cdr pair))))
+      raw-text)))
+
+(defun org-mindmap--node-display-lines (node max-width wrap-leaves)
+  "Return a list of lines to represent a NODE, respecting MAX-WIDTH and WRAP-LEAVES options."
+  (let ((text (org-mindmap--node-display-text node)))
+    ;; TODO Handle root node: delimiters should stay on the first line.
+    ;; IDEA Put lines both below and above the connector row.
+    (if (and max-width (or wrap-leaves (org-mindmap-parser-node-children node)))
+        (string-fill text max-width)
+      (list text))))
+
+(defun org-mindmap--calculate-max-width (max-depth)
+  "Return the optimal max-width for the current window and tree MAX-DEPTH."
+  (floor (/ window-width (1+ (* 2 max-depth)))))
+
 ;; Occupancy helpers
-(defun org-mindmap--node-occupancy (node spacing)
+(defun org-mindmap--node-occupancy (node spacing &optional max-width wrap-leaves)
   "Return (start-col end-col) occupied by NODE with SPACING,
-including its horizontal connector from parent."
+including its horizontal connector from parent, respecting MAX-WIDTH and WRAP-LEAVES options."
   (let* ((side (org-mindmap-parser-node-side node))
          (col (org-mindmap-parser-node-col node))
+         ;; (lines (org-mindmap--node-display-lines node max-width wrap-leaves))
          (len (string-width (org-mindmap--node-display-text node)))
          (parent (org-mindmap-parser-node-parent node))
          (parent-col (when parent (org-mindmap-parser-node-col parent)))
@@ -298,10 +328,13 @@ Requires COL, LAYOUT, SPACING, and COMPACTED."
                      nodes))
     0))
 
-(defun org-mindmap-build-tree-layout (roots layout spacing compacted)
-  "Assign row and col to all nodes in ROOTS using LAYOUT, SPACING, and COMPACTED."
+(defun org-mindmap-build-tree-layout (roots props)
+  "Assign row and col to all nodes in ROOTS using map PROPS."
   (let ((occupied-map (make-hash-table :test 'eq))
-        (prev-root nil))
+        (prev-root nil)
+        (layout (plist-get props :layout))
+        (spacing (plist-get props :spacing))
+        (compacted (plist-get props :compacted)))
     ;; TODO Multiple roots are rudimentary, we should remove them and simplify the logic.
     (dolist (root roots)
       (org-mindmap-build-subtree root 3 layout spacing compacted)
@@ -314,16 +347,6 @@ Requires COL, LAYOUT, SPACING, and COMPACTED."
       (dolist (n all-nodes) (decf (org-mindmap-parser-node-row n) min-r))
       (dolist (n all-nodes) (decf (org-mindmap-parser-node-col n) min-c))
       all-nodes)))
-
-(defun org-mindmap--node-display-text (node)
-  "Return the actual string to be displayed for NODE, including delimiters if root."
-  (let ((raw-text (org-mindmap-parser-node-text node)))
-    (if (null (org-mindmap-parser-node-parent node))
-        (let ((pair (car org-mindmap-parser-root-delimiters)))
-          (if (string= raw-text "")
-              (concat (car pair) (cdr pair))
-            (concat (car pair) " " raw-text " " (cdr pair))))
-      raw-text)))
 
 (defun org-mindmap--connector-symbol (has-above has-below has-left has-right)
   "Determine correct box-drawing character based on connection directions.
@@ -343,7 +366,7 @@ HAS-ABOVE, HAS-BELOW, HAS-LEFT, HAS-RIGHT are booleans."
      ((and (not has-above) (not has-below) has-left has-right) (char-to-string (nth 0 pack))) ; ─
      (t (char-to-string (nth 1 pack))))))
 
-(defun org-mindmap--draw-node (node)
+(defun org-mindmap-draw-subtree (node)
   "Write NODE node-text and box-drawing connectors onto the buffer canvas."
   (let* ((node-row (org-mindmap-parser-node-row node))
          (node-col (org-mindmap-parser-node-col node))
@@ -391,22 +414,19 @@ HAS-ABOVE, HAS-BELOW, HAS-LEFT, HAS-RIGHT are booleans."
                           (delete-region (point) (min (1+ (point)) (line-end-position)))
                           (insert (org-mindmap--propertize-connector sym))))))
         (dolist (child children)
-          (org-mindmap--draw-node child))))))
+          (org-mindmap-draw-subtree child))))))
 
-(defun org-mindmap-render-tree (roots &optional layout spacing compacted)
-  "Render ROOTS evaluating the specified LAYOUT geometry and SPACING.
-If COMPACTED is non-nil, nodes fill vacant vertical spaces."
-  (unless layout (setq layout org-mindmap-default-layout))
-  (unless spacing (setq spacing org-mindmap-spacing))
-  (unless compacted (setq compacted org-mindmap-default-compacted))
+(defun org-mindmap-render-tree (roots &optional props)
+  "Render ROOTS evaluating the specified :layout geometry and :spacing from map PROPS.
+If :compacted is non-nil, nodes fill vacant vertical spaces."
   (if (null roots)
       ""
-    (org-mindmap-build-tree-layout roots layout spacing compacted)
+    (org-mindmap-build-tree-layout roots props)
     (with-temp-buffer
       (setq indent-tabs-mode nil)
       (let ((inhibit-read-only t))
         (dolist (root roots)
-          (org-mindmap--draw-node root)))
+          (org-mindmap-draw-subtree root)))
       (buffer-string))))
 
 ;;
@@ -421,6 +441,7 @@ Handles legacy migration of :layout left/compact/centered."
     (when (re-search-forward "^[ \t]*#\\+begin_mindmap\\(.*\\)$" (line-end-position) t)
       (let ((args-string (match-string 1))
             (props nil))
+        ;; Parse mindmap block properties:
         (while (string-match "\\(:[a-zA-Z-]+\\)[ \t]+\\([^ \t\n]+\\)" args-string)
           (let ((key (intern (match-string 1 args-string)))
                 (val (match-string 2 args-string)))
@@ -449,7 +470,35 @@ Handles legacy migration of :layout left/compact/centered."
              (t
               (setq props (plist-put props key val)))))
           (setq args-string (substring args-string (match-end 0))))
-        props))))
+        ;; Fill in the default values.
+        (org-mindmap--populate-properties props)))))
+
+(defun org-mindmap--populate-properties (&optional props)
+  "Populate PROOS plist with default properties for missing keys."
+  (setq props (plist-put props :layout
+                         (intern
+                          (or (plist-get props :layout)
+                              (symbol-name org-mindmap-default-layout)))))
+  (setq props (plist-put props :spacing
+                         (string-to-number
+                          (or (plist-get props :spacing)
+                              (number-to-string org-mindmap-spacing)))))
+  (setq props (plist-put props :compacted
+                         (if (plist-member props :compacted)
+                             (plist-get props :compacted)
+                           org-mindmap-default-compacted)))
+  (setq props (plist-put props :max-width
+                         (if (plist-member props :max-width)
+                             (plist-get props :max-width)
+                           (if (or org-mindmap-default-adaptive-max-width
+                                   (plist-member props :adaptive-max-width))
+                               (org-mindmap--calculate-max-width 4)
+                             org-mindmap-default-max-width))))
+  (setq props (plist-put props :wrap-leaves
+                         (if (plist-member props :wrap-leaves)
+                             (plist-get props :wrap-leaves)
+                           org-mindmap-default-wrap-leaves)))
+  props)
 
 (defun org-mindmap-switch-layout ()
   "Cycle layout mode between top and centered for the current mindmap region."
@@ -477,10 +526,7 @@ Handles legacy migration of :layout left/compact/centered."
   (let* ((region (org-mindmap-parser-get-region))
          (start (car region))
          (props (org-mindmap--parse-properties start))
-         (compacted (if (plist-member props :compacted)
-                        (plist-get props :compacted)
-                      org-mindmap-default-compacted))
-         (new-compacted (not compacted)))
+         (new-compacted (not (plist-get props :compacted))))
     (save-excursion
       (goto-char start)
       (if (re-search-forward "\\(^[ \t]*#\\+begin_mindmap\\)\\(.*\\)$" (line-end-position) t)
@@ -509,10 +555,10 @@ Handles legacy migration of :layout left/compact/centered."
       (mapc traverse roots)
       nil)))
 
-(defun org-mindmap--update-buffer (start end roots &optional target-id layout spacing compacted)
+(defun org-mindmap--update-buffer (start end roots &optional target-id props)
   "Replace region from START to END with rendered ROOTS, and focus TARGET-ID.
-Accepts LAYOUT, SPACING, and COMPACTED."
-  (let ((rendered (org-mindmap-render-tree roots layout spacing compacted)))
+Accepts mindmap PROPS."
+  (let ((rendered (org-mindmap-render-tree roots props)))
     ;; Draw the map.
     (save-excursion
       (goto-char start)
@@ -540,13 +586,6 @@ Accepts LAYOUT, SPACING, and COMPACTED."
     (let* ((start (car region))
            (end (cdr region))
            (props (org-mindmap--parse-properties start))
-           (layout (intern (or (plist-get props :layout)
-                               (symbol-name org-mindmap-default-layout))))
-           (spacing (string-to-number (or (plist-get props :spacing)
-                                          (number-to-string org-mindmap-spacing))))
-           (compacted (if (plist-member props :compacted)
-                          (plist-get props :compacted)
-                        org-mindmap-default-compacted))
            (roots (org-mindmap-parser-parse-region start end))
            (orig-row (save-excursion
                        (let ((cur-line (line-number-at-pos (point)))
@@ -555,7 +594,7 @@ Accepts LAYOUT, SPACING, and COMPACTED."
            (orig-col (current-column))
            (target-node (org-mindmap--find-node-by-pos roots orig-row orig-col))
            (target-id (when target-node (org-mindmap-parser-node-id target-node))))
-      (org-mindmap--update-buffer start end roots target-id layout spacing compacted))))
+      (org-mindmap--update-buffer start end roots target-id props))))
 
 ;;
 ;; Structural Editing — Insert and Delete
@@ -643,13 +682,9 @@ With prefix argument at root node, creates a child on the left side."
                                                    :side side)))
       (setf (org-mindmap-parser-node-children target-node)
             (append (org-mindmap-parser-node-children target-node) (list new-node)))
-      (let* ((props (org-mindmap--parse-properties start))
-             (layout (intern (or (plist-get props :layout) (symbol-name org-mindmap-default-layout))))
-             (spacing (string-to-number (or (plist-get props :spacing) (number-to-string org-mindmap-spacing))))
-             (compacted (if (plist-member props :compacted)
-                            (plist-get props :compacted)
-                          org-mindmap-default-compacted)))
-        (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id new-node) layout spacing compacted))
+      (org-mindmap--update-buffer start end roots
+                                  (org-mindmap-parser-node-id new-node)
+                                  (org-mindmap--parse-properties start))
       new-node)))
 
 (defun org-mindmap-insert-sibling (&optional text)
@@ -671,13 +706,9 @@ If target-node is the root node, it calls `org-mindmap-insert-child`."
                 (setf (org-mindmap-parser-node-children parent)
                       (org-mindmap--insert-after siblings target-node new-node)))
             (setq roots (org-mindmap--insert-after roots target-node new-node)))
-          (let* ((props (org-mindmap--parse-properties start))
-                 (layout (intern (or (plist-get props :layout) (symbol-name org-mindmap-default-layout))))
-                 (spacing (string-to-number (or (plist-get props :spacing) (number-to-string org-mindmap-spacing))))
-                 (compacted (if (plist-member props :compacted)
-                                (plist-get props :compacted)
-                              org-mindmap-default-compacted)))
-            (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id new-node) layout spacing compacted))
+          (org-mindmap--update-buffer start end roots
+                                      (org-mindmap-parser-node-id new-node)
+                                      (org-mindmap--parse-properties start))
           new-node)
       (org-mindmap-insert-child text))))
 
@@ -692,13 +723,9 @@ In the single-root model, this is only allowed if no root exists."
         (user-error "A root node already exists.  This mindmap only supports a single root")
       (let ((new-node (org-mindmap-parser-make-node :id (gensym "node") :text text)))
         (setq roots (list new-node))
-        (let* ((props (org-mindmap--parse-properties start))
-               (layout (intern (or (plist-get props :layout) (symbol-name org-mindmap-default-layout))))
-               (spacing (string-to-number (or (plist-get props :spacing) (number-to-string org-mindmap-spacing))))
-               (compacted (if (plist-member props :compacted)
-                              (plist-get props :compacted)
-                            org-mindmap-default-compacted)))
-          (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id new-node) layout spacing compacted))))))
+        (org-mindmap--update-buffer start end roots
+                                    (org-mindmap-parser-node-id new-node)
+                                    (org-mindmap--parse-properties start))))))
 
 (defun org-mindmap-delete-node ()
   "Remove node at cursor position and all descendants."
@@ -722,13 +749,8 @@ In the single-root model, this is only allowed if no root exists."
             (error "Cannot delete the last root node")
           (setq next-focus-id (org-mindmap--get-next-focus roots target-node nil))
           (setq roots (remq target-node roots))))
-      (let* ((props (org-mindmap--parse-properties start))
-             (layout (intern (or (plist-get props :layout) (symbol-name org-mindmap-default-layout))))
-             (spacing (string-to-number (or (plist-get props :spacing) (number-to-string org-mindmap-spacing))))
-             (compacted (if (plist-member props :compacted)
-                            (plist-get props :compacted)
-                          org-mindmap-default-compacted)))
-        (org-mindmap--update-buffer start end roots next-focus-id layout spacing compacted)))))
+      (org-mindmap--update-buffer start end roots next-focus-id
+                                  (org-mindmap--parse-properties start)))))
 
 ;;
 ;; Movement Operations — Reorder and Restructure
@@ -773,13 +795,9 @@ In the single-root model, this is only allowed if no root exists."
         (if parent
             (setf (org-mindmap-parser-node-children parent) all-siblings)
           (setq roots all-siblings))
-        (let* ((props (org-mindmap--parse-properties start))
-               (layout (intern (or (plist-get props :layout) (symbol-name org-mindmap-default-layout))))
-               (spacing (string-to-number (or (plist-get props :spacing) (number-to-string org-mindmap-spacing))))
-               (compacted (if (plist-member props :compacted)
-                              (plist-get props :compacted)
-                            org-mindmap-default-compacted)))
-          (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id target-node) layout spacing compacted))))))
+        (org-mindmap--update-buffer start end roots
+                                    (org-mindmap-parser-node-id target-node)
+                                    (org-mindmap--parse-properties start))))))
 
 (defun org-mindmap-move-down ()
   "Swap node with next sibling."
@@ -799,13 +817,9 @@ In the single-root model, this is only allowed if no root exists."
         (if parent
             (setf (org-mindmap-parser-node-children parent) all-siblings)
           (setq roots all-siblings))
-        (let* ((props (org-mindmap--parse-properties start))
-               (layout (intern (or (plist-get props :layout) (symbol-name org-mindmap-default-layout))))
-               (spacing (string-to-number (or (plist-get props :spacing) (number-to-string org-mindmap-spacing))))
-               (compacted (if (plist-member props :compacted)
-                              (plist-get props :compacted)
-                            org-mindmap-default-compacted)))
-          (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id target-node) layout spacing compacted))))))
+        (org-mindmap--update-buffer start end roots
+                                    (org-mindmap-parser-node-id target-node)
+                                    (org-mindmap--parse-properties start))))))
 
 (defun org-mindmap-promote ()
   "Move node up one level (becomes sibling of parent) or shift side if at root."
@@ -832,13 +846,9 @@ In the single-root model, this is only allowed if no root exists."
         ;; Inherit side from new parent (grandparent) if it has one
         (when (org-mindmap-parser-node-side grandparent)
           (org-mindmap--set-side-recursive target-node (org-mindmap-parser-node-side grandparent)))))
-    (let* ((props (org-mindmap--parse-properties start))
-           (layout (intern (or (plist-get props :layout) (symbol-name org-mindmap-default-layout))))
-           (spacing (string-to-number (or (plist-get props :spacing) (number-to-string org-mindmap-spacing))))
-           (compacted (if (plist-member props :compacted)
-                          (plist-get props :compacted)
-                        org-mindmap-default-compacted)))
-      (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id target-node) layout spacing compacted))))
+    (org-mindmap--update-buffer start end roots
+                                (org-mindmap-parser-node-id target-node)
+                                (org-mindmap--parse-properties start))))
 
 (defun org-mindmap-demote ()
   "Move node down one level (becomes child of previous sibling)."
@@ -861,13 +871,9 @@ In the single-root model, this is only allowed if no root exists."
               (append (org-mindmap-parser-node-children prev-sibling) (list target-node)))
         ;; Inherit side from new parent
         (org-mindmap--set-side-recursive target-node (org-mindmap-parser-node-side prev-sibling))
-        (let* ((props (org-mindmap--parse-properties start))
-               (layout (intern (or (plist-get props :layout) (symbol-name org-mindmap-default-layout))))
-               (spacing (string-to-number (or (plist-get props :spacing) (number-to-string org-mindmap-spacing))))
-               (compacted (if (plist-member props :compacted)
-                              (plist-get props :compacted)
-                            org-mindmap-default-compacted)))
-          (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id target-node) layout spacing compacted))))))
+        (org-mindmap--update-buffer start end roots
+                                    (org-mindmap-parser-node-id target-node)
+                                    (org-mindmap--parse-properties start))))))
 
 ;;
 ;; Auxilliary functions: conversion from and to org lists.
@@ -996,10 +1002,11 @@ all nodes and their descendants get that side."
                           (org-list-to-lisp)))
              (root-node (org-mindmap-parser-make-node :id (gensym "node") :text (or root-text "")))
              (children (org-mindmap--lisp-to-nodes lisp-list root-node))
-             (inhibit-read-only t))
+             (inhibit-read-only t)
+             (default-props (org-mindmap--populate-properties)))
         (setf (org-mindmap-parser-node-children root-node) children)
         (delete-region begin end)
-        (let ((rendered (org-mindmap-render-tree (list root-node))))
+        (let ((rendered (org-mindmap-render-tree (list root-node) default-props)))
           (save-excursion
             (goto-char begin)
             (insert "#+begin_mindmap\n" rendered "\n#+end_mindmap\n")))))))
@@ -1061,16 +1068,9 @@ nodes of that side."
     (unless target-node (error "No node at point"))
     (let* ((old-text (org-mindmap-parser-node-text target-node))
            (new-text (read-string "Edit node: " old-text))
-           (props (org-mindmap--parse-properties start))
-           (layout (intern (or (plist-get props :layout)
-                               (symbol-name org-mindmap-default-layout))))
-           (spacing (string-to-number (or (plist-get props :spacing)
-                                          (number-to-string org-mindmap-spacing))))
-           (compacted (if (plist-member props :compacted)
-                          (plist-get props :compacted)
-                        org-mindmap-default-compacted)))
+           (props (org-mindmap--parse-properties start)))
       (setf (org-mindmap-parser-node-text target-node) new-text)
-      (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id target-node) layout spacing compacted))))
+      (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id target-node) props))))
 
 ;;
 ;; Keybindings and Templates

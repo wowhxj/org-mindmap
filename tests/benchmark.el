@@ -55,7 +55,8 @@
            (t-parse 0)
            (t-layout 0)
            (t-draw 0)
-           (t-buffer-update 0))
+           (t-buffer-update 0)
+           (props (org-mindmap--parse-properties start)))
 
       ;; Benchmark Parsing
       (let ((st (float-time)))
@@ -64,7 +65,7 @@
 
       ;; Benchmark Layout
       (let ((st (float-time)))
-        (org-mindmap-build-tree-layout roots 'centered 1 t)
+        (org-mindmap-build-tree-layout roots props)
         (setq t-layout (* 1000 (- (float-time) st))))
 
       ;; Benchmark Redrawing into temp buffer (simulating render-tree)
@@ -73,7 +74,7 @@
           (setq indent-tabs-mode nil)
           (let ((inhibit-read-only t))
             (dolist (root roots)
-              (org-mindmap--draw-node root))))
+              (org-mindmap-draw-subtree root))))
         (setq t-draw (* 1000 (- (float-time) st))))
 
       (message "BENCHMARK RESULTS (Test Case 12):")
