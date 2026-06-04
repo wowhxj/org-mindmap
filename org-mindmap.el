@@ -139,16 +139,28 @@ Ensures properties are not sticky to allow editing node text at the boundary."
             (concat (car pair) " " raw-text " " (cdr pair))))
       raw-text)))
 
+(defun org-mindmap--add-root-delimiters (text &optional pair)
+  "Add root delimiters to the line of TEXT."
+  (let ((left (if pair (car pair) " "))
+        (right (if pair (cdr pair) " ")))
+    (if (string= text "")
+        (concat (car pair) (cdr pair))
+      (concat left " " text " " right))))
+
 (defun org-mindmap--node-display-lines (node props)
   "Return a list of lines to represent a NODE, respecting PROPS :max-width and :wrap-leaves options."
-  (let ((text (org-mindmap--node-display-text node))
-        (max-width (plist-get props :max-width))
-        (wrap-leaves (plist-get props :wrap-leaves)))
+  (let* ((text (org-mindmap-parser-node-text node))
+         (max-width (plist-get props :max-width))
+         (wrap-leaves (plist-get props :wrap-leaves))
+         (lines (if (and max-width (or wrap-leaves (org-mindmap-parser-node-children node)))
+                    (string-split (string-fill text max-width) "\n")
+                  (list text))))
     ;; TODO Handle root node: delimiters should stay on the first line.
     ;; IDEA Put lines both below and above the connector row.
-    (if (and max-width (or wrap-leaves (org-mindmap-parser-node-children node)))
-        (string-split (string-fill text max-width) "\n")
-      (list text))))
+    (if (null (org-mindmap-parser-node-parent node))
+        (append (list (org-mindmap--add-root-delimiters (car lines) (car org-mindmap-parser-root-delimiters)))
+                (mapcar #'org-mindmap--add-root-delimiters (cdr lines)))
+      lines)))
 
 (defun org-mindmap--node-box (node props)
   "Calculate NODE width, respecting node text wrapping specified by PROPS.
@@ -160,31 +172,7 @@ Return (width height . lines) cons cell."
 
 (defun org-mindmap--calculate-max-width (max-depth)
   "Return the optimal max-width for the current window and tree MAX-DEPTH."
-  (floor (/ window-width (1+ (* 2 max-depth)))))
-
-;; Occupancy helpers
-(defun org-mindmap--node-occupancy (node props)
-  "Return (start-col end-col) occupied by NODE with SPACING,
-including its horizontal connector from parent, respecting MAX-WIDTH and WRAP-LEAVES options."
-  (let* ((side (org-mindmap-parser-node-side node))
-         (col (org-mindmap-parser-node-col node))
-         (spacing (plist-get props :spacing))
-         (box (org-mindmap--node-box node props))
-         (len (car box))
-         (num-lines (cadr box))
-         (parent (org-mindmap-parser-node-parent node))
-         (parent-col (when parent (org-mindmap-parser-node-col parent)))
-         (parent-len (when parent (car (org-mindmap--node-box parent props)) )))
-    (cl-loop for i from 0 to num-lines collect
-             (if (eq side 'left)
-                 ;; Left side node
-                 (let ((start-col (- col spacing))
-                       (end-col (if parent parent-col (+ col len))))
-                   (list start-col end-col))
-               ;; Right side node
-               (let ((start-col (if parent (+ parent-col parent-len 1) col))
-                     (end-col (+ col len spacing)))
-                 (list start-col end-col))))))
+  (floor (/ (window-width) (1+ (* 2 max-depth)))))
 
 (defun org-mindmap--side-is (node side)
   "Check if NODE is on the given SIDE of the tree."
@@ -209,6 +197,31 @@ including its horizontal connector from parent, respecting MAX-WIDTH and WRAP-LE
   (cl-loop for child in (org-mindmap--side-children node side)
            append (cons child (org-mindmap--side-descendants child side))))
 
+;; Occupancy helpers
+(defun org-mindmap--node-occupancy (node props)
+  "Return (start-col end-col) occupied by NODE with SPACING,
+including its horizontal connector from parent, respecting MAX-WIDTH and WRAP-LEAVES options."
+  (let* ((side (org-mindmap-parser-node-side node))
+         (row (org-mindmap-parser-node-row node))
+         (col (org-mindmap-parser-node-col node))
+         (spacing (plist-get props :spacing))
+         (box (org-mindmap--node-box node props))
+         (len (car box))
+         (num-lines (cadr box))
+         (parent (org-mindmap-parser-node-parent node))
+         (parent-col (when parent (org-mindmap-parser-node-col parent)))
+         (parent-len (when parent (car (org-mindmap--node-box parent props)) )))
+    (cl-loop for i from 0 to (1- num-lines) collect
+             (if (eq side 'left)
+                 ;; Left side node
+                 (let ((start-col (- col spacing))
+                       (end-col (if parent parent-col (+ col len))))
+                   (list (+ row i) start-col end-col))
+               ;; Right side node
+               (let ((start-col (if parent (+ parent-col parent-len 1) col))
+                     (end-col (+ col len spacing)))
+                 (list (+ row i) start-col end-col))))))
+
 (defun org-mindmap--get-occupied-rows (nodes props)
   "Return a list of (row start-col end-col) for all NODES.
 This also includes their vertical connectors and respects SPACING."
@@ -218,8 +231,7 @@ This also includes their vertical connectors and respects SPACING."
                  (row (org-mindmap-parser-node-row node)))
              (append
               ;; Add the node itself (including its horizontal connector from parent)
-              (let ((node-occ (car (org-mindmap--node-occupancy node props))))
-                (list row (car node-occ) (cadr node-occ)))
+              (cl-loop for node-occ in (org-mindmap--node-occupancy node props) append node-occ)
               ;; Add the vertical connector for its children
               (cl-loop for side in (list 'left 'right) append
                        (when-let* ((children (org-mindmap--side-children node side))
@@ -238,36 +250,10 @@ OCCUPIED-MAP is a hash table mapping rows to lists of occupied columns."
              (cl-loop for (occ-start . occ-end) in (gethash r occupied-map)
                       thereis (not (or (<= end-col occ-start) (>= start-col occ-end)))))))
 
-;; Subtree builder
-(defun org-mindmap--min-row (nodes)
-  "Find minimal row number among NODES if any, otherwise return 0."
-  (if nodes (apply #'min (mapcar #'org-mindmap-parser-node-row nodes)) 0))
-
-(defun org-mindmap--max-row (nodes)
-  "Find maximal row number among NODES if any, otherwise return 0."
-  (if nodes (apply #'max (mapcar #'org-mindmap-parser-node-row nodes)) 0))
-
 (defun org-mindmap--update-occupied-map (occupied-map nodes props)
   "Update occupied cells OCCUPIED-MAP from NODES locations using SPACING."
   (dolist (occ (org-mindmap--get-occupied-rows nodes props))
     (push (cons (nth 1 occ) (nth 2 occ)) (gethash (nth 0 occ) occupied-map))))
-
-(defun org-mindmap--center-subtree (node)
-  "Vertically center NODE's tree."
-  (let* ((left-descendants (org-mindmap--side-descendants node 'left))
-         (l-min (org-mindmap--min-row left-descendants))
-         (l-max (org-mindmap--max-row left-descendants))
-         (l-middle (/ (+ l-min l-max) 2))
-         (right-descendants (org-mindmap--side-descendants node 'right))
-         (r-min (org-mindmap--min-row right-descendants))
-         (r-max (org-mindmap--max-row right-descendants))
-         (r-middle (/ (+ r-min r-max) 2))
-         (root-row (max l-middle r-middle))
-         (l-shift (- root-row l-middle))
-         (r-shift (- root-row r-middle)))
-    (dolist (n left-descendants) (incf (org-mindmap-parser-node-row n) l-shift))
-    (dolist (n right-descendants) (incf (org-mindmap-parser-node-row n) r-shift))
-    root-row))
 
 (defun org-mindmap--shift-subtree (node prev-node occupied-map props)
   "Shift NODE subtree downwards and update OCCUPIED-MAP.
@@ -280,7 +266,11 @@ Requires PREV-NODE (may be nil) and map PROPS."
               ;; ... if compacting, shift the tree upwards if there's vacant space
               (let* ((row (org-mindmap-parser-node-row node))
                      ;; this prevents nodes from reordering
-                     (delta (if prev-node (+ (org-mindmap-parser-node-row prev-node) 1 (- row)) 0))
+                     (delta (if prev-node
+                                (+ (org-mindmap-parser-node-row prev-node)
+                                   (cadr (org-mindmap--node-box prev-node props))
+                                   (- row))
+                              0))
                      (subtree-occ-rows (org-mindmap--get-occupied-rows subtree props)))
                 (while (org-mindmap--check-overlap-subtree subtree-occ-rows delta occupied-map)
                   (incf delta))
@@ -288,12 +278,42 @@ Requires PREV-NODE (may be nil) and map PROPS."
             ;; ... otherwise just take the the next unoccupied row
             (setq delta 0)
             (when prev-node
-              (setq delta (1+ (org-mindmap--max-row (org-mindmap--subtree prev-node)))))
+              (setq delta (1+ (org-mindmap--max-row (org-mindmap--subtree prev-node) props))))
             delta)))
     ;; Shift each child node downwards in the subtree.
     (dolist (n subtree) (incf (org-mindmap-parser-node-row n) delta))
     ;; Mark the tree location in the occupied map.
     (org-mindmap--update-occupied-map occupied-map subtree props)))
+
+;; Subtree builder
+(defun org-mindmap--min-row (nodes)
+  "Find minimal row number among NODES if any, otherwise return 0."
+  (if nodes (apply #'min (mapcar #'org-mindmap-parser-node-row nodes)) 0))
+
+(defun org-mindmap--max-row (nodes props)
+  "Find maximal row number among NODES if any, otherwise return 0."
+  ;; (if nodes (apply #'max (mapcar #'org-mindmap-parser-node-row nodes)) 0)
+  (if nodes
+      (cl-loop for node in nodes maximize
+               (+ (org-mindmap-parser-node-row node) (1- (cadr (org-mindmap--node-box node props)))))
+    0))
+
+(defun org-mindmap--center-subtree (node props)
+  "Vertically center NODE's tree."
+  (let* ((left-descendants (org-mindmap--side-descendants node 'left))
+         (l-min (org-mindmap--min-row left-descendants))
+         (l-max (org-mindmap--max-row left-descendants props))
+         (l-middle (/ (+ l-min l-max) 2))
+         (right-descendants (org-mindmap--side-descendants node 'right))
+         (r-min (org-mindmap--min-row right-descendants))
+         (r-max (org-mindmap--max-row right-descendants props))
+         (r-middle (/ (+ r-min r-max) 2))
+         (root-row (max l-middle r-middle))
+         (l-shift (- root-row l-middle))
+         (r-shift (- root-row r-middle)))
+    (dolist (n left-descendants) (incf (org-mindmap-parser-node-row n) l-shift))
+    (dolist (n right-descendants) (incf (org-mindmap-parser-node-row n) r-shift))
+    root-row))
 
 (defun org-mindmap-build-subtree (node col props)
   "Recursively calculate rows and cols for NODE and its children.
@@ -321,7 +341,7 @@ Requires starting COL and map PROPS."
     (setf (org-mindmap-parser-node-row node)
           (if (eq layout 'centered)
               ;; ...for centered layout, recenter the whole tree
-              (org-mindmap--center-subtree node)
+              (org-mindmap--center-subtree node props)
             ;; ...for top layout, take the top children rows
             (org-mindmap--min-row (org-mindmap--descendants node))))))
 
@@ -380,21 +400,12 @@ HAS-ABOVE, HAS-BELOW, HAS-LEFT, HAS-RIGHT are booleans."
          (box (org-mindmap--node-box node props))
          (node-len (car box))
          (node-lines (cddr box)))
+    ;; Insert the node text.
     (cl-loop for i from 0 to (1- (length node-lines)) do
              (org-mindmap--move-to (+ node-row i) node-col)
              (let ((end (+ (point) node-len)))
                (delete-region (point) (min end (line-end-position))))
-             ;; Insert the node text:
-             (if (null (org-mindmap-parser-node-parent node))
-                 ;; ... if it's root, add delimiters
-                 (let* ((raw-text (org-mindmap-parser-node-text node))
-                        (pair (car org-mindmap-parser-root-delimiters))
-                        (l-delim (car pair))
-                        (r-delim (cdr pair)))
-                   (insert (org-mindmap--propertize-connector l-delim)
-                           (if (string= raw-text "") "" (org-mindmap--propertize-text (concat " " raw-text " ")))
-                           (org-mindmap--propertize-connector r-delim)))
-               (insert (org-mindmap--propertize-text (nth i node-lines)))))
+             (insert (org-mindmap--propertize-text (nth i node-lines))))
     ;; Draw children:
     (dolist (side (list 'left 'right))
       (when-let* ((children (org-mindmap--side-children node side))
@@ -500,7 +511,7 @@ Handles legacy migration of :layout left/compact/centered."
                          (if (plist-member props :max-width)
                              (plist-get props :max-width)
                            (if (or org-mindmap-default-adaptive-max-width
-                                   (plist-member props :adaptive-max-width))
+                                   (plist-get props :adaptive-max-width))
                                (org-mindmap--calculate-max-width 4)
                              org-mindmap-default-max-width))))
   (setq props (plist-put props :wrap-leaves
@@ -515,8 +526,8 @@ Handles legacy migration of :layout left/compact/centered."
   (let* ((region (org-mindmap-parser-get-region))
          (start (car region))
          (props (org-mindmap--parse-properties start))
-         (current (intern (or (plist-get props :layout)
-                              (symbol-name org-mindmap-default-layout))))
+         (current (or (plist-get props :layout)
+                      (symbol-name org-mindmap-default-layout)))
          (next (if (eq current 'centered) 'top 'centered)))
     (save-excursion
       (goto-char start)

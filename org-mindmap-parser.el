@@ -35,7 +35,7 @@
 
 (cl-defstruct (org-mindmap-parser-node (:constructor org-mindmap-parser-make-node))
   "Data structure representing a single mindmap node."
-  id text children depth parent row col width side)
+  id text children depth parent row col width heightj side)
 
 (defcustom org-mindmap-parser-debug nil
   "If non-nil, print debug information to the *org-mindmap-debug* buffer."
@@ -238,9 +238,14 @@ in ROW, starting from COL, marking consumed symbols as VISITED."
     (if (= dx 0)
         (cons nil (cons row col))
       (let (char)
-        (while (and (setq char (org-mindmap-parser--grid-get lines row curr-col))
+        (while (and (not (org-mindmap-parser--is-visited row curr-col visited))
+                    (setq char (org-mindmap-parser--grid-get lines row curr-col))
                     (not (org-mindmap-parser--is-connector char))
-                    (not (org-mindmap-parser--is-visited row curr-col visited)))
+                    ;; (or
+                    ;;  (not (setq next-char (org-mindmap-parser--grid-get lines row (+ curr-col dx))))
+                    ;;  (not (org-mindmap-parser--is-whitespace char))
+                    ;;  (not (org-mindmap-parser--is-whitespace next-char)))
+                    )
           (push char chars)
           (org-mindmap-parser--mark-visited row curr-col visited)
           (setq curr-col (+ curr-col dx)))
