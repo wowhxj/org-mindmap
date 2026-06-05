@@ -396,9 +396,10 @@ HAS-ABOVE, HAS-BELOW, HAS-LEFT, HAS-RIGHT are booleans."
     ;; Insert the node text.
     (cl-loop for i below (length node-lines) do
              (org-mindmap--move-to (+ node-row i) node-col)
-             (let ((end (+ (point) node-len)))
-               (delete-region (point) (min end (line-end-position))))
-             (insert (org-mindmap--propertize-text (nth i node-lines))))
+             (let ((line (string-pad (nth i node-lines) node-len))
+                   (end (+ (point) node-len)))
+               (delete-region (point) (min end (line-end-position)))
+               (insert (org-mindmap--propertize-text line))))
     ;; Draw children:
     (dolist (side (list 'left 'right))
       (when-let* ((children (org-mindmap--side-children node side))

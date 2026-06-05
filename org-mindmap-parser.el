@@ -413,10 +413,17 @@ VISITED keeps track of visited locations."
     ;; Process its children.
     (org-mindmap-parser--join-continuations child-node lines dir visited))
   ;; Pick up wrapped lines of the given node.
-  (let ((col (org-mindmap-parser-node-col node))
-        (row (org-mindmap-parser-node-row node))
-        (i 1))
-    (while (let* ((result (org-mindmap-parser--consume-text lines (+ row i) col dir visited))
+  (let* ((side (org-mindmap-parser-node-side node))
+         (row (org-mindmap-parser-node-row node))
+         (col (org-mindmap-parser-node-col node))
+         (start-col (if (eq side 'left)
+                        ;; If a node has side, it must have parent. Only root node has no parent.
+                        (let* ((parent (org-mindmap-parser-node-parent node))
+                               (parent-col (org-mindmap-parser-node-col parent)))
+                          (- parent-col 4))
+                      col))
+         (i 1))
+    (while (let* ((result (org-mindmap-parser--consume-text lines (+ row i) start-col dir visited))
                   (text (car result))
                   (found-text (and text (not (string= text "")))))
              (when found-text
