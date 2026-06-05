@@ -394,7 +394,7 @@ HAS-ABOVE, HAS-BELOW, HAS-LEFT, HAS-RIGHT are booleans."
          (node-len (car box))
          (node-lines (cddr box)))
     ;; Insert the node text.
-    (cl-loop for i from 0 to (1- (length node-lines)) do
+    (cl-loop for i below (length node-lines) do
              (org-mindmap--move-to (+ node-row i) node-col)
              (let ((end (+ (point) node-len)))
                (delete-region (point) (min end (line-end-position))))
@@ -421,7 +421,7 @@ HAS-ABOVE, HAS-BELOW, HAS-LEFT, HAS-RIGHT are booleans."
                           (delete-region (point) (min (+ (point) 2) (line-end-position)))
                           (insert (org-mindmap--propertize-connector conn-str)))
                          ((and (eq side 'right) has-right)
-                          (delete-region (point) (min (+ (point) 3) (line-end-position)))
+                          (delete-region (point) (min (+ (point) 2) (line-end-position)))
                           (insert (org-mindmap--propertize-connector conn-str)))
                          (t
                           (delete-region (point) (min (1+ (point)) (line-end-position)))

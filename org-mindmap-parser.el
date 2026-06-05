@@ -217,7 +217,10 @@ in LINES are whitespaces."
          (cl-loop for i below n collect
                   (org-mindmap-parser--grid-get lines row (+ col (* i dx)))))))
 
-(defun org-mindmap-parser--search-back (lines row col dir visited)
+(defun org-mindmap-parser--search-back (lines row col limit dir visited)
+  "Move cursor in LINES text block from ROW and COL to the reverse of DIR
+direction until it stumbles on a visited cell in VISITED registry, a connector,
+or 2 consecutive space, or reach the shift LIMIT."
   (let* ((curr-col col)
          (dx (car dir)))
     (if (= dx 0)
@@ -229,7 +232,8 @@ in LINES are whitespaces."
                     (setq char (org-mindmap-parser--grid-get lines row (- curr-col dx)))
                     (not (org-mindmap-parser--is-connector char))
                     (not (org-mindmap-parser--all-whitespaces lines row (- curr-col dx)
-                                                              (org-mindmap-parser--invert-dir dir) 2)))
+                                                              (org-mindmap-parser--invert-dir dir) 2))
+                    (<  (* dx (- col curr-col)) limit))
           (setq curr-col (- curr-col dx)))
         curr-col))))
 
@@ -238,7 +242,7 @@ in LINES are whitespaces."
 in ROW, starting from COL, marking consumed symbols as VISITED."
   (let* ((dx (car dir))
          (chars nil)
-         (col-maybe-shifted (org-mindmap-parser--search-back lines row col dir visited))
+         (col-maybe-shifted (org-mindmap-parser--search-back lines row col 3 dir visited))
          (start-col (org-mindmap-parser--consume-spaces lines row col-maybe-shifted dir visited))
          (curr-col start-col))
     (if (= dx 0)
@@ -455,14 +459,17 @@ VISITED keeps track of visited locations."
               (when (< col-end max-width)
                 ;; Go right
                 (org-mindmap-parser--debug "Going right")
-                (org-mindmap-parser--go lines row col-end org-mindmap-parser-dir-right root-node visited 'right))
+                (org-mindmap-parser--go lines row col-end org-mindmap-parser-dir-right root-node visited 'right)
+                ;; Pick up wrapped lines of the nodes.
+                (org-mindmap-parser--sort-tree root-node)
+                (org-mindmap-parser--join-continuations root-node lines org-mindmap-parser-dir-right visited))
               (when (> col-start 0)
                 ;; Go left
                 (org-mindmap-parser--debug "Going left")
-                (org-mindmap-parser--go lines row col-start org-mindmap-parser-dir-left root-node visited 'left))
-              ;; Pick up wrapped lines of the nodes.
-              (org-mindmap-parser--sort-tree root-node)
-              (org-mindmap-parser--join-continuations root-node lines org-mindmap-parser-dir-right visited)
+                (org-mindmap-parser--go lines row col-start org-mindmap-parser-dir-left root-node visited 'left)
+                ;; Pick up wrapped lines of the nodes.
+                (org-mindmap-parser--sort-tree root-node)
+                (org-mindmap-parser--join-continuations root-node lines org-mindmap-parser-dir-left visited))
               (org-mindmap-parser--debug "--- Finished parse. Root found. ---")
               (list root-node))
           (org-mindmap-parser--debug "--- Finished parse. Root not found. ---")
