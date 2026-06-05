@@ -16,7 +16,7 @@
   - Calls `org-mindmap--node-display-text` then `org-mindmap--wrap-text`
   - Respects `wrap-leaves`: if node has no children and wrap-leaves is nil, return single-line
   - Root nodes: wraps only the inner raw text, not the delimiters (delimiters stay on first line)
-- [ ] 2.3 Implement adaptive max-width calculation in `org-mindmap-align`
+- [X] 2.3 Implement adaptive max-width calculation in `org-mindmap-align`
   - Compute `floor(window-width / (max_depth * 2 + 1))` when `:adaptive-max-width` is t
 
 ## 3. Parser Post-Pass
@@ -31,51 +31,51 @@
 
 ## 4. Multi-Row Occupancy
 
-- [ ] 4.1 Update `org-mindmap--node-occupancy` to return a list of `(row start-col end-col)` tuples
+- [X] 4.1 Update `org-mindmap--node-occupancy` to return a list of `(row start-col end-col)` tuples
   - Compute display lines via `org-mindmap--node-display-lines`
   - For each line, compute start-col/end-col using the same side-dependent logic as current
   - Line 0 uses node's row, line N uses node's row + N
-- [ ] 4.2 Update `org-mindmap--get-occupied` to use the new multi-row occupancy
+- [X] 4.2 Update `org-mindmap--get-occupied` to use the new multi-row occupancy
   - Replace single `push (list row start-col end-col)` with iteration over per-line tuples
   - Vertical connector occupancy logic remains unchanged (connectors still single-column)
 
 ## 5. Layout Changes
 
-- [ ] 5.1 Update `org-mindmap-build-subtree` for node height awareness
+- [x] 5.1 Update `org-mindmap-build-subtree` for node height awareness
   - Compute `node-height` from `org-mindmap--node-display-lines` length
   - Leaf nodes: `end-row = row + height - 1` (not just row 0)
   - Sibling stacking: `prev-child-end-row + 1` instead of `prev-child-row + 1`
   - Compaction: occupancy tuples already cover all rows, algorithm unchanged
   - Centering: uses first-row for median calculation (connector attachment point)
   - Normalization: check `min-r` of all node start-rows (continuation rows are below start)
-- [ ] 5.2 Update `org-mindmap-build-tree-layout` for multi-root height
+- [X] 5.2 Update `org-mindmap-build-tree-layout` for multi-root height
   - `prev-root-end-row` instead of `prev-root-row` for sequential root placement
-- [ ] 5.3 Thread `max-width` and `wrap-leaves` parameters through `org-mindmap-build-subtree`, `org-mindmap-build-tree-layout`, `org-mindmap-render-tree`
+- [x] 5.3 Thread `max-width` and `wrap-leaves` parameters through `org-mindmap-build-subtree`, `org-mindmap-build-tree-layout`, `org-mindmap-render-tree`
 
 ## 6. Drawing Changes
 
-- [ ] 6.1 Update `org-mindmap--draw-node` for multi-line text insertion
+- [x] 6.1 Update `org-mindmap--draw-node` for multi-line text insertion
   - Compute display lines
   - Insert each line at `(row + line-index, col)`
   - Connector trees: use first-row for attachment, vertical spans use first-row of children
-  - Right-side connector position uses width of first line only
-- [ ] 6.2 Ensure `org-mindmap--move-to` handles multi-row insertion correctly (no change needed — it already pads rows)
+  - Right-side connector position uses width of ~~first line only~~ the longest line
+- [x] 6.2 Ensure `org-mindmap--move-to` handles multi-row insertion correctly (no change needed — it already pads rows)
 
 ## 7. Node Finding
 
-- [ ] 7.1 Update `org-mindmap--find-node-by-pos` for multi-row nodes
+- [X] 7.1 Update `org-mindmap--find-node-by-pos` for multi-row nodes
   - Compute node end-row from wrapped line count
   - Check `(>= row r)` and `(<= row end-row)` instead of `(= row r)`
   - Column check remains `(>= col c)` and `(<= col (+ c w))` using first-line width
 
 ## 8. Pipeline Integration
 
-- [ ] 8.1 Update `org-mindmap-align` to extract `:max-width`, `:adaptive-max-width`, `:wrap-leaves` from parsed properties
+- [x] 8.1 Update `org-mindmap-align` to extract `:max-width`, `:adaptive-max-width`, `:wrap-leaves` from parsed properties
   - Compute effective max-width (explicit value or adaptive calculation)
   - Pass through to `org-mindmap--update-buffer`
-- [ ] 8.2 Update `org-mindmap--update-buffer` to accept and pass new parameters to `org-mindmap-render-tree`
-- [ ] 8.3 Update all structural editing commands (`insert-child`, `insert-sibling`, `delete-node`, `move-up/down`, `promote/demote`, `edit-node`) to extract and pass the new properties
-- [ ] 8.4 Update `org-mindmap-list-to-mindmap` to pass new parameters (defaults: no wrapping)
+- [x] 8.2 Update `org-mindmap--update-buffer` to accept and pass new parameters to `org-mindmap-render-tree`
+- [x] 8.3 Update all structural editing commands (`insert-child`, `insert-sibling`, `delete-node`, `move-up/down`, `promote/demote`, `edit-node`) to extract and pass the new properties
+- [x] 8.4 Update `org-mindmap-list-to-mindmap` to pass new parameters (defaults: no wrapping)
 
 ## 9. Tests
 

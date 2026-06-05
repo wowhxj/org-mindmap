@@ -530,3 +530,4 @@ Root2 ╰─ B
             - на улицах (row:4, col:77, side:right)
             - не в павильонах (row:6, col:77, side:right)
 #+end_expected
+

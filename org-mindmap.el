@@ -516,6 +516,55 @@ Handles legacy migration of :layout left/compact/centered."
                            org-mindmap-default-wrap-leaves)))
   props)
 
+(defun org-mindmap--find-node-by-id (roots id)
+  "Recursively find and return the node with ID in ROOTS."
+  (catch 'found
+    (let ((traverse nil))
+      (setq traverse
+            (lambda (node)
+              (when (eq (org-mindmap-parser-node-id node) id)
+                (throw 'found node))
+              (mapc traverse (org-mindmap-parser-node-children node))))
+      (mapc traverse roots)
+      nil)))
+
+(defun org-mindmap--find-node-by-pos (roots row col props)
+  "Recursively find and return the node in ROOTS that spans ROW and COL."
+  (catch 'found
+    (let ((traverse nil))
+      (setq traverse
+            (lambda (node)
+              (let* ((box (org-mindmap--node-box node props))
+                     (width (car box))
+                     (height (cadr box))
+                     (min-row (org-mindmap-parser-node-row node))
+                     (max-row (+ min-row height -1))
+                     (min-col (org-mindmap-parser-node-col node))
+                     (max-col (+ min-col width)))
+                (when (and (>= row min-row) (<= row max-row) (>= col min-col) (<= col max-col))
+                  (throw 'found node)))
+              (mapc traverse (org-mindmap-parser-node-children node))))
+      (mapc traverse roots)
+      nil)))
+
+(defun org-mindmap--get-state ()
+  "Parse current region, return (start end roots target-node)."
+  (let ((region (org-mindmap-parser-get-region)))
+    (unless region (error "Not inside a mindmap region"))
+    (let* ((start (car region))
+           (end (cdr region))
+           (props (org-mindmap--parse-properties start))
+           (roots (org-mindmap-parser-parse-region start end))
+           ;; IDEA: Find the node at point at parsing stage. Also find the exact location
+           ;; of the point in the node text, then use it in `edit-node'.
+           (orig-row (save-excursion
+                       (let ((cur-line (line-number-at-pos (point)))
+                             (start-line (line-number-at-pos start)))
+                         (- cur-line start-line 1))))
+           (orig-col (current-column))
+           (target-node (org-mindmap--find-node-by-pos roots orig-row orig-col props)))
+      (list start end props roots target-node))))
+
 (defun org-mindmap-switch-layout ()
   "Cycle layout mode between top and centered for the current mindmap region."
   (interactive)
@@ -525,6 +574,7 @@ Handles legacy migration of :layout left/compact/centered."
          (current (or (plist-get props :layout)
                       (symbol-name org-mindmap-default-layout)))
          (next (if (eq current 'centered) 'top 'centered)))
+    ;; TODO Fetch properties writer into a helper function.
     (save-excursion
       (goto-char start)
       (if (re-search-forward "\\(^[ \t]*#\\+begin_mindmap\\)\\(.*\\)$" (line-end-position) t)
@@ -559,18 +609,6 @@ Handles legacy migration of :layout left/compact/centered."
             (replace-match args t t nil 2))))
     (org-mindmap-align)))
 
-(defun org-mindmap--find-node-by-id (roots id)
-  "Recursively find and return the node with ID in ROOTS."
-  (catch 'found
-    (let ((traverse nil))
-      (setq traverse
-            (lambda (node)
-              (when (eq (org-mindmap-parser-node-id node) id)
-                (throw 'found node))
-              (mapc traverse (org-mindmap-parser-node-children node))))
-      (mapc traverse roots)
-      nil)))
-
 (defun org-mindmap--update-buffer (start end roots &optional target-id props)
   "Replace region from START to END with rendered ROOTS, and focus TARGET-ID.
 Accepts mindmap PROPS."
@@ -596,70 +634,30 @@ Accepts mindmap PROPS."
 (defun org-mindmap-align ()
   "Align and format the current mindmap region based on block properties."
   (interactive)
-  (let ((region (org-mindmap-parser-get-region)))
-    (unless region
-      (error "Not inside an org-mindmap region"))
-    (let* ((start (car region))
-           (end (cdr region))
-           (props (org-mindmap--parse-properties start))
-           (roots (org-mindmap-parser-parse-region start end))
-           (orig-row (save-excursion
-                       (let ((cur-line (line-number-at-pos (point)))
-                             (start-line (line-number-at-pos start)))
-                         (- cur-line start-line 1))))
-           (orig-col (current-column))
-           (target-node (org-mindmap--find-node-by-pos roots orig-row orig-col))
-           (target-id (when target-node (org-mindmap-parser-node-id target-node))))
+  (cl-destructuring-bind (start end props roots target-node) (org-mindmap--get-state)
+    (let ((target-id (when target-node (org-mindmap-parser-node-id target-node))))
       (org-mindmap--update-buffer start end roots target-id props))))
 
 ;;
 ;; Structural Editing — Insert and Delete
 ;;
 
-(defun org-mindmap--find-node-by-pos (roots row col)
-  "Recursively find and return the node in ROOTS that spans ROW and COL."
-  (catch 'found
-    (let ((traverse nil))
-      (setq traverse
-            (lambda (node)
-              (let* ((r (org-mindmap-parser-node-row node))
-                     (c (org-mindmap-parser-node-col node))
-                     (w (org-mindmap-parser-node-width node)))
-                (when (and (= row r) (>= col c) (<= col (+ c w)))
-                  (throw 'found node)))
-              (mapc traverse (org-mindmap-parser-node-children node))))
-      (mapc traverse roots)
-      nil)))
-
 (defun org-mindmap-find-node-at-point ()
   "Locate the node corresponding to the cursor position."
-  (let ((region (org-mindmap-parser-get-region)))
-    (when region
-      (let* ((start (car region))
-             (end (cdr region))
-             (roots (org-mindmap-parser-parse-region start end))
-             (orig-row (save-excursion
-                         (let ((cur-line (line-number-at-pos (point)))
-                               (start-line (line-number-at-pos start)))
-                           (- cur-line start-line 1))))
-             (orig-col (current-column)))
-        (org-mindmap--find-node-by-pos roots orig-row orig-col)))))
+  (cl-destructuring-bind (start end props roots target-node) (org-mindmap--get-state)
+    target-node))
 
-(defun org-mindmap--get-state ()
-  "Parse current region, return (start end roots target-node)."
-  (let ((region (org-mindmap-parser-get-region)))
-    (unless region (error "Not inside a mindmap region"))
-    (let* ((start (car region))
-           (end (cdr region))
-           (props (org-mindmap--parse-properties start))
-           (roots (org-mindmap-parser-parse-region start end))
-           (orig-row (save-excursion
-                       (let ((cur-line (line-number-at-pos (point)))
-                             (start-line (line-number-at-pos start)))
-                         (- cur-line start-line 1))))
-           (orig-col (current-column))
-           (target-node (org-mindmap--find-node-by-pos roots orig-row orig-col)))
-      (list start end props roots target-node))))
+(defun org-mindmap-edit-node ()
+  "Edit the text of the node at point and refresh the mindmap."
+  (interactive)
+  (cl-destructuring-bind (start end props roots target-node) (org-mindmap--get-state)
+    (unless target-node (error "No node at point"))
+    (let* ((old-text (org-mindmap-parser-node-text target-node))
+           ;; TODO Use the actual point position here when the parser learns to fetch it.
+           ;; (new-text (read-string "Edit node: " (cons old-text 0)))
+           (new-text (read-string "Edit node: " old-text)))
+      (setf (org-mindmap-parser-node-text target-node) new-text)
+      (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id target-node) props))))
 
 (defun org-mindmap--insert-after (lst target new-item)
   "Insert NEW-ITEM into LST immediately after TARGET."
@@ -1062,16 +1060,6 @@ nodes of that side."
               (when (and root-text (not (string= root-text "")))
                 (insert root-text "\n"))
               (insert (mapconcat #'identity (nreverse result-list) "\n") "\n"))))))))
-
-(defun org-mindmap-edit-node ()
-  "Edit the text of the node at point and refresh the mindmap."
-  (interactive)
-  (cl-destructuring-bind (start end props roots target-node) (org-mindmap--get-state)
-    (unless target-node (error "No node at point"))
-    (let* ((old-text (org-mindmap-parser-node-text target-node))
-           (new-text (read-string "Edit node: " old-text)))
-      (setf (org-mindmap-parser-node-text target-node) new-text)
-      (org-mindmap--update-buffer start end roots (org-mindmap-parser-node-id target-node) props))))
 
 ;;
 ;; Keybindings and Templates

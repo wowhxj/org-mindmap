@@ -59,6 +59,7 @@ Indices: 0:Horizontal, 1:Vertical, 2:T-Down, 3:T-Up, 4:T-Right, 5:T-Left,
 
 (defcustom org-mindmap-parser-root-delimiters '(("«" . "»")
                                                 ("“" . "”")
+                                                ("⎨" . "⎬")
                                                 ("⏴" . "⏵")
                                                 ("【" . "】"))
   "List of root delimiter pairs (cons cells).
@@ -369,6 +370,8 @@ VISITED keeps track of visited locations."
   (let ((height (length lines))
         (implicit-conn-root nil)
         (implicit-text-root nil))
+    ;; TODO This function should first check ALL the canvas for the first (primary) pair,
+    ;; and only if no primary pairs found, to check the next pairs.
     (org-mindmap-parser--debug "Starting implicit root search")
     (cl-loop for row from 0 to (1- height)
              until (or implicit-conn-root implicit-text-root)
