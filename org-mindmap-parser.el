@@ -209,6 +209,14 @@ Starts from ROW and COL.  VISITED marks the consumed cells."
           (setq curr-col (+ curr-col dx)))
         curr-col))))
 
+(defun org-mindmap-parser--all-whitespaces (lines row col dir n)
+  "Check if, starting from ROW and COL, all N symbols in DIR direction
+in LINES are whitespaces."
+  (let ((dx (car dir)))
+    (all #'org-mindmap-parser--is-whitespace
+         (cl-loop for i below n collect
+                  (org-mindmap-parser--grid-get lines row (+ col (* i dx)))))))
+
 (defun org-mindmap-parser--search-back (lines row col dir visited)
   (let* ((curr-col col)
          (dx (car dir)))
@@ -220,10 +228,8 @@ Starts from ROW and COL.  VISITED marks the consumed cells."
         (while (and (not (org-mindmap-parser--is-visited row (- curr-col dx) visited))
                     (setq char (org-mindmap-parser--grid-get lines row (- curr-col dx)))
                     (not (org-mindmap-parser--is-connector char))
-                    (setq prev-char (org-mindmap-parser--grid-get lines row (- curr-col (* 2 dx))))
-                    (or
-                     (not (org-mindmap-parser--is-whitespace char))
-                     (not (org-mindmap-parser--is-whitespace prev-char))))
+                    (not (org-mindmap-parser--all-whitespaces lines row (- curr-col dx)
+                                                              (org-mindmap-parser--invert-dir dir) 2)))
           (setq curr-col (- curr-col dx)))
         curr-col))))
 
@@ -237,15 +243,13 @@ in ROW, starting from COL, marking consumed symbols as VISITED."
          (curr-col start-col))
     (if (= dx 0)
         (cons nil (cons row col))
-      (let (char)
+      (let (char next-char)
+        ;; Consume chars until we find an obstacle: a visited cell, a connector,
+        ;; end of line or two consecutive whitespace symbols.
         (while (and (not (org-mindmap-parser--is-visited row curr-col visited))
                     (setq char (org-mindmap-parser--grid-get lines row curr-col))
                     (not (org-mindmap-parser--is-connector char))
-                    ;; (or
-                    ;;  (not (setq next-char (org-mindmap-parser--grid-get lines row (+ curr-col dx))))
-                    ;;  (not (org-mindmap-parser--is-whitespace char))
-                    ;;  (not (org-mindmap-parser--is-whitespace next-char)))
-                    )
+                    (not (org-mindmap-parser--all-whitespaces lines row curr-col dir 3)))
           (push char chars)
           (org-mindmap-parser--mark-visited row curr-col visited)
           (setq curr-col (+ curr-col dx)))
@@ -262,6 +266,7 @@ VISITED marks the consumed cells."
          (text (car result))
          (leftmost-col (cadr result))
          (curr-col (cddr result))
+         (next-col (org-mindmap-parser--consume-spaces lines row curr-col dir visited))
          (node (when (not (string= text ""))
                  (org-mindmap-parser-make-node
                   :id (gensym "node")
@@ -276,7 +281,7 @@ VISITED marks the consumed cells."
       (org-mindmap-parser--debug "Found node: '%s' at (%d, %d)" text row leftmost-col)
       (when parent
         (push node (org-mindmap-parser-node-children parent))))
-    (cons node (cons row curr-col))))
+    (cons node (cons row next-col))))
 
 (defun org-mindmap-parser--go (lines row col dir parent visited side)
   "Recursive 2D walker following connectors and nodes in LINES.

@@ -349,7 +349,7 @@
 #+end_mindmap
 #+begin_expected
     - Root (row:0, col:10, side:nil)
-      - Left (row:0, col:0, side:left)
+      - Left (row:0, col:2, side:left)
       - Right (row:0, col:22, side:right)
 #+end_expected
 
@@ -365,8 +365,8 @@
 #+end_mindmap
 #+begin_expected
     -  (row:3, col:10, side:nil)
-      - One (row:2, col:0, side:left)
-      - Two (row:3, col:0, side:left)
+      - One (row:2, col:3, side:left)
+      - Two (row:3, col:2, side:left)
       - Geography (row:3, col:16, side:right)
         - constant (row:0, col:29, side:right)
         - size (row:1, col:29, side:right)
@@ -380,7 +380,7 @@
             - Sistan (row:5, col:53, side:right)
             - Baluchestan (row:6, col:53, side:right)
         - west (row:6, col:29, side:right)
-      - Three (row:4, col:0, side:left)
+      - Three (row:4, col:1, side:left)
       - Identity (row:4, col:16, side:right)
 #+end_expected
 
@@ -396,8 +396,8 @@ Three ─┘           ╰─ Identity  │                       ╭─ Khurasa
 #+end_mindmap
 #+begin_expected
     - Iran (row:3, col:10, side:nil)
-      - One (row:2, col:0, side:left)
-      - Two (row:3, col:0, side:left)
+      - One (row:2, col:2, side:left)
+      - Two (row:3, col:2, side:left)
       - Geography (row:3, col:22, side:right)
         - constant (row:0, col:35, side:right)
         - size (row:1, col:35, side:right)
