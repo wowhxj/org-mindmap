@@ -101,8 +101,8 @@ If `org-mindmap-parser-debug' is t, format FMT with ARGS."
                               (list org-mindmap-parser-dir-left org-mindmap-parser-dir-right org-mindmap-parser-dir-down) ; 2: T-Down
                               (list org-mindmap-parser-dir-left org-mindmap-parser-dir-up org-mindmap-parser-dir-right) ; 3: T-Up
                               (list org-mindmap-parser-dir-up org-mindmap-parser-dir-right org-mindmap-parser-dir-down) ; 4: T-Right
-                              (list org-mindmap-parser-dir-left org-mindmap-parser-dir-up org-mindmap-parser-dir-down) ; 5: T-Left
-                              (list org-mindmap-parser-dir-left org-mindmap-parser-dir-up org-mindmap-parser-dir-right org-mindmap-parser-dir-down) ; 6: Cross
+                              (list org-mindmap-parser-dir-up org-mindmap-parser-dir-left org-mindmap-parser-dir-down) ; 5: T-Left
+                              (list org-mindmap-parser-dir-up org-mindmap-parser-dir-left org-mindmap-parser-dir-right org-mindmap-parser-dir-down) ; 6: Cross
                               (list org-mindmap-parser-dir-right org-mindmap-parser-dir-down) ; 7: Corner-TL
                               (list org-mindmap-parser-dir-left org-mindmap-parser-dir-down) ; 8: Corner-TR
                               (list org-mindmap-parser-dir-up org-mindmap-parser-dir-right) ; 9: Corner-BL
@@ -294,7 +294,7 @@ VISITED keeps track of visited locations."
     (org-mindmap-parser--debug "Reached boundaries at (%d, %d)" row col))
    (t (let* ((char (org-mindmap-parser--grid-get lines row col))
              (possible-dirs (org-mindmap-parser--dirs char)))
-        (puthash (+ (* row 1000) col) t visited)
+        (org-mindmap-parser--mark-visited row col visited)
         (org-mindmap-parser--debug "On char %c at (%d, %d), considering dirs: %s" char row col possible-dirs)
         (dolist (possible-dir possible-dirs)
           (unless (equal possible-dir (org-mindmap-parser--invert-dir dir))
@@ -461,8 +461,8 @@ VISITED keeps track of visited locations."
                 (org-mindmap-parser--debug "Going left")
                 (org-mindmap-parser--go lines row col-start org-mindmap-parser-dir-left root-node visited 'left))
               ;; Pick up wrapped lines of the nodes.
-              (org-mindmap-parser--join-continuations root-node lines org-mindmap-parser-dir-right visited)
               (org-mindmap-parser--sort-tree root-node)
+              (org-mindmap-parser--join-continuations root-node lines org-mindmap-parser-dir-right visited)
               (org-mindmap-parser--debug "--- Finished parse. Root found. ---")
               (list root-node))
           (org-mindmap-parser--debug "--- Finished parse. Root not found. ---")

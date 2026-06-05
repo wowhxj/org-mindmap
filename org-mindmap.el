@@ -210,28 +210,21 @@ including its horizontal connector from parent, respecting MAX-WIDTH and WRAP-LE
          (num-lines (cadr box))
          (parent (org-mindmap-parser-node-parent node))
          (parent-col (when parent (org-mindmap-parser-node-col parent)))
-         (parent-len (when parent (car (org-mindmap--node-box parent props)) )))
-    (cl-loop for i from 0 to (1- num-lines) collect
-             (if (eq side 'left)
-                 ;; Left side node
-                 (let ((start-col (- col spacing))
-                       (end-col (if parent parent-col (+ col len))))
-                   (list (+ row i) start-col end-col))
-               ;; Right side node
-               (let ((start-col (if parent (+ parent-col parent-len 1) col))
-                     (end-col (+ col len spacing)))
-                 (list (+ row i) start-col end-col))))))
+         (parent-len (when parent (car (org-mindmap--node-box parent props))))
+         (start-col (if (eq side 'left) (- col spacing) (if parent (+ parent-col parent-len 1) col)))
+         (end-col (if (eq side 'left) (if parent parent-col (+ col len)) (+ col len spacing))))
+    (cl-loop for i below num-lines collect (list (+ row i) start-col end-col))))
 
 (defun org-mindmap--get-occupied-rows (nodes props)
   "Return a list of (row start-col end-col) for all NODES.
 This also includes their vertical connectors and respects SPACING."
-  (cl-loop for node in nodes collect
+  (cl-loop for node in nodes append
            (let ((len (car (org-mindmap--node-box node props)))
                  (col (org-mindmap-parser-node-col node))
                  (row (org-mindmap-parser-node-row node)))
              (append
               ;; Add the node itself (including its horizontal connector from parent)
-              (cl-loop for node-occ in (org-mindmap--node-occupancy node props) append node-occ)
+              (org-mindmap--node-occupancy node props)
               ;; Add the vertical connector for its children
               (cl-loop for side in (list 'left 'right) append
                        (when-let* ((children (org-mindmap--side-children node side))
