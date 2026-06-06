@@ -171,6 +171,28 @@ There are two primary layouts, and a separate =compacted= compaction option:
 
 To toggle compaction (which allows nodes to float up/down to occupy vacant space), use the =:compacted t= property or execute =org-mindmap-toggle-compaction=. Layout switching with =org-mindmap-switch-layout= cycles layout between =top= and =centered=.
 
+** Text Wrapping
+Long node text can be wrapped at word boundaries to keep the map within the window width.  Add a =:max-width= property (integer) to the block header.
+
+For example, to wrap text at 7 character columns (soft, at word boundaries):
+#+begin_src
+,#+begin_mindmap :max-width 7
+#+end_src
+
+Use =:max-width auto= to automatically calculate a width based on the tree depth and window width:
+#+begin_src
+,#+begin_mindmap :max-width auto
+#+end_src
+
+To keep leaf nodes (nodes without children) unwrapped while wrapping the rest, use =:wrap-leaves nil=:
+#+begin_src
+,#+begin_mindmap :max-width 10 :wrap-leaves nil
+#+end_src
+
+The =:wrap-leaves= property can also be a float multiplier, e.g. 1.5 gives leaf nodes 50% more width than non-leaf nodes.
+
+Wrapping is purely visual: the logical node text stays unchanged (newlines replace spaces when rendering, spaces replace newlines when parsing).
+
 * Fonts
 I've tested the package with =Hack= font, and things seem to work fine.
 

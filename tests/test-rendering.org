@@ -96,3 +96,39 @@ One and some ─╮                            ├─ south ╯  and some
                                                                    ├─ Sistan
                                                                    ╰─ Baluchestan
 #+end_expected
+
+* Test Case 7: Wrap-Leaves Nil :layout top :max-width 7 :wrap-leaves nil
+#+begin_sexp
+("Root" nil ("A long leaf node text" right) ("Parent" right ("Another long leaf" right)))
+#+end_sexp
+#+begin_expected
+« Root » ┬─ A long leaf node text
+         ╰─ Parent ── Another long leaf
+#+end_expected
+
+* Test Case 8: Single-Word Node :layout top :max-width 5
+#+begin_sexp
+("Supercalifragilistic" nil ("child" right))
+#+end_sexp
+#+begin_expected
+« Supercalifragilistic » ── child
+#+end_expected
+
+* Test Case 9: Text Shorter Than Max-Width :layout top :max-width 20
+#+begin_sexp
+("Hi" nil ("short" right))
+#+end_sexp
+#+begin_expected
+« Hi » ── short
+#+end_expected
+
+* Test Case 10: Empty Node With Max-Width :layout top :max-width 7
+#+begin_sexp
+("" nil ("A long child node" right) ("B" right))
+#+end_sexp
+#+begin_expected
+«» ┬─ A long
+   │  child 
+   │  node  
+   ╰─ B
+#+end_expected

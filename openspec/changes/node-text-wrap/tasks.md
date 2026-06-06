@@ -79,12 +79,12 @@
 
 ## 9. Tests
 
-- [ ] 9.1 Update `tests/test-rendering.el` test harness to support `max-width` and `wrap-leaves` parameters
-- [ ] 9.2 Add test cases: unwrapped (baseline), soft-wrap with various max-width values, wrap-leaves nil, single-word node, CJK text, empty text, text shorter than max-width
+- [X] 9.1 Update `tests/test-rendering.el` test harness to support `max-width` and `wrap-leaves` parameters
+- [X] 9.2 Add test cases: unwrapped (baseline), soft-wrap with various max-width values, wrap-leaves nil, single-word node, CJK text, empty text, text shorter than max-width
 - [X] 9.3 Add parser test cases: single-line (unchanged), multi-line continuation joining, continuation adjacent to other branch
-- [ ] 9.4 Run all existing rendering tests to verify no regressions with `:max-width nil` (default)
+- [X] 9.4 Run all existing rendering tests to verify no regressions with `:max-width nil` (default)
 
 ## 10. Cleanup
 
-- [ ] 10.1 Verify `demo.org` renders correctly with and without `:max-width`
-- [ ] 10.2 Update `README.org` documentation with `:max-width` usage examples
+- [X] 10.1 Verify `demo.org` renders correctly with and without `:max-width`
+- [X] 10.2 Update `README.org` documentation with `:max-width` usage examples

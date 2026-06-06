@@ -35,7 +35,7 @@
 
 (cl-defstruct (org-mindmap-parser-node (:constructor org-mindmap-parser-make-node))
   "Data structure representing a single mindmap node."
-  id text children depth parent row col width heightj side)
+  id text children depth parent row col width side)
 
 (defcustom org-mindmap-parser-debug nil
   "If non-nil, print debug information to the *org-mindmap-debug* buffer."
