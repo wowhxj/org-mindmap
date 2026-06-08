@@ -180,17 +180,59 @@ If `org-mindmap-parser-debug' is t, format FMT with ARGS."
   "Return non-nil if CHAR is whitespace or null."
   (or (null char) (= char ?\s) (= char ?\t)))
 
+(defun org-mindmap-parser--string-to-visual-vector (s)
+  "Convert string S to a vector of character lists mapped to visual columns.
+Each element corresponds to a visual column. For multi-column characters (like CJK),
+the first column contains the character, and subsequent columns are filled with ?\0."
+  (let* ((total-width (string-width s))
+         (vec (make-vector total-width nil))
+         (len (length s))
+         (last-col -1))
+    (cl-loop for i below len
+             for char = (aref s i)
+             for start-col = (string-width (substring s 0 i))
+             for end-col = (string-width (substring s 0 (1+ i)))
+             do
+             (let ((target-col (min start-col (1- total-width))))
+               (if (or (= start-col end-col) (>= start-col total-width))
+                   (when (>= last-col 0)
+                     (setf (aref vec last-col) (append (aref vec last-col) (list char))))
+                 (setf (aref vec target-col) (list char))
+                 (setq last-col target-col)
+                 (cl-loop for col from (1+ target-col) below (min end-col total-width)
+                          do
+                          (setf (aref vec col) (list (if (= char ?\t) ?\s ?\0)))))))
+    (cl-loop for idx below total-width do
+             (when (null (aref vec idx))
+               (setf (aref vec idx) (list ?\s))))
+    vec))
+
 (defun org-mindmap-parser--dirs (char)
   "Return entry ports for a CHAR."
   (when (org-mindmap-parser--is-connector char)
     (gethash char (org-mindmap-parser--get-symbol-registry))))
 
-(defun org-mindmap-parser--grid-get (lines row col)
-  "Safely fetch a character from 2D array of strings LINES at ROW and COL."
+(defun org-mindmap-parser--grid-get-all (lines row col)
+  "Safely fetch all characters from 2D array of strings or visual vectors LINES at ROW and COL."
   (if (and (>= row 0) (< row (length lines)))
       (let ((line (aref lines row)))
         (if (and (>= col 0) (< col (length line)))
-            (aref line col)
+            (let ((val (aref line col)))
+              (if (listp val)
+                  val
+                (when val (list val))))
+          nil))
+    nil))
+
+(defun org-mindmap-parser--grid-get (lines row col)
+  "Safely fetch a character from 2D array of strings or visual vectors LINES at ROW and COL."
+  (if (and (>= row 0) (< row (length lines)))
+      (let ((line (aref lines row)))
+        (if (and (>= col 0) (< col (length line)))
+            (let ((val (aref line col)))
+              (if (listp val)
+                  (car val)
+                val))
           nil))
     nil))
 
@@ -299,20 +341,23 @@ the logical offset (BASE-OFFSET + position within chars) of the cursor."
                             point-row point-col
                             (= row point-row)
                             (= curr-col point-col))
-                   (setq offset (+ (length chars) (if (< dx 0) 1 0)))
+                   (let ((non-placeholder-len (length (cl-remove ?\0 chars))))
+                     (setq offset (+ non-placeholder-len (if (< dx 0) 1 0))))
                    (org-mindmap-parser--debug "... node is at point. Offset = %d" offset))
                  ;; Continue if there remains something to consume.
                  (and char
                       (not (org-mindmap-parser--is-visited row curr-col visited))
                       (not (org-mindmap-parser--is-connector char))
                       (not (org-mindmap-parser--all-whitespaces lines row curr-col dir 3))))
-          ;; Consume the char and shift the cursor.
-          (push char chars)
+          ;; Consume the chars and shift the cursor.
+          (let ((all-chars (org-mindmap-parser--grid-get-all lines row curr-col)))
+            (setq chars (append (if (> dx 0) (reverse all-chars) all-chars) chars)))
           (org-mindmap-parser--mark-visited row curr-col visited)
           (setq curr-col (+ curr-col dx)))
 
         (let* ((final-chars (if (> dx 0) (nreverse chars) chars))
-               (trimmed (if final-chars (string-trim (apply #'string final-chars)) ""))
+               (non-placeholder-chars (cl-remove ?\0 final-chars))
+               (trimmed (if non-placeholder-chars (string-trim (apply #'string non-placeholder-chars)) ""))
                (len (string-width trimmed))
                (leftmost-col (if (> dx 0) start-col (+ curr-col 1))))
           ;; Edge case: cursor before/after the consumed text on this row
@@ -417,14 +462,15 @@ VISITED keeps track of visited locations."
   "Check if cursor is inside a mindmap region."
   (when (org-mindmap-parser-get-region) t))
 
-(defun org-mindmap-parser--find-explicit-root (lines visited &optional point-row point-col)
-  "Find an explicit root in LINES."
+(defun org-mindmap-parser--find-explicit-root (lines-strings lines visited &optional point-row point-col)
+  "Find an explicit root in LINES-STRINGS, and parse using visual vectors in LINES."
   (cl-loop for (left . right) in org-mindmap-parser-root-delimiters thereis
-           (cl-loop for row below (length lines) thereis
-                    (let ((line (aref lines row))
+           (cl-loop for row below (length lines-strings) thereis
+                    (let ((line (aref lines-strings row))
                           (root-regexp (concat (regexp-quote left) "\\(.*?\\)" (regexp-quote right))))
                       (when (string-match root-regexp line)
-                        (let* ((col-start (match-beginning 1))
+                        (let* ((char-col-start (match-beginning 1))
+                               (col-start (string-width (substring line 0 char-col-start)))
                                (result (org-mindmap-parser--consume-node
                                         lines row col-start org-mindmap-parser-dir-right
                                         nil visited nil point-row point-col t))
@@ -540,11 +586,12 @@ VISITED keeps track of visited locations."
                       (not (looking-at-p "^[ \t]*#\\+end_mindmap")))
             (push (buffer-substring-no-properties (line-beginning-position) (line-end-position)) lines-list)
             (forward-line 1)))
-        (let* ((lines (vconcat (nreverse lines-list)))
+        (let* ((lines-strings (vconcat (nreverse lines-list)))
+               (lines (vconcat (mapcar #'org-mindmap-parser--string-to-visual-vector lines-strings)))
                (height (length lines))
-               (max-width (if (> height 0) (apply #'max (mapcar #'length lines)) 0))
+               (max-width (if (> height 0) (apply #'max (mapcar #'string-width lines-strings)) 0))
                (visited (make-hash-table :test 'eq))
-               (explicit-root (org-mindmap-parser--find-explicit-root lines visited point-row point-col))
+               (explicit-root (org-mindmap-parser--find-explicit-root lines-strings lines visited point-row point-col))
                (root-node
                 (cond
                  (explicit-root explicit-root)

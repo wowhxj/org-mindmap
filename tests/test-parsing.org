@@ -566,9 +566,9 @@ Root2 ╰─ B
 « 你好世界 » ── こんにちは世界 ── 안녕하세요 ── ہیلو دنیا ── oh مرحبا بالعالم
 #+end_mindmap
 #+begin_expected
-    -  (row:0, col:0, side:nil)
-      - LeftParent (row:0, col:6, side:right)
-        - LeftChild (row:0, col:20, side:right)
-          - SubChild (row:0, col:33, side:right)
-            - Leaf (row:0, col:45, side:right)
+    - 你好世界 (row:0, col:0, side:nil)
+      - こんにちは世界 (row:0, col:16, side:right)
+        - 안녕하세요 (row:0, col:34, side:right)
+          - ہیلو دنیا (row:0, col:48, side:right)
+            - oh مرحبا بالعالم (row:0, col:61, side:right)
 #+end_expected
