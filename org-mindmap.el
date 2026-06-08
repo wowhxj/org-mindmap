@@ -467,9 +467,7 @@ Requires starting COL and map PROPS."
 
 (defun org-mindmap-build-tree-layout (roots props)
   "Assign row and col to all nodes in ROOTS using map PROPS."
-  (let ((gc-cons-threshold most-positive-fixnum)
-        (gc-cons-percentage 0.9)
-        (occupied-map (make-hash-table :test 'eq))
+  (let ((occupied-map (make-hash-table :test 'eq))
         (org-mindmap--subtree-occ-cache (make-hash-table :test 'eq))
         (org-mindmap--side-children-cache (make-hash-table :test 'eq))
         (org-mindmap--side-descendants-cache (make-hash-table :test 'eq))
@@ -508,9 +506,7 @@ HAS-ABOVE, HAS-BELOW, HAS-LEFT, HAS-RIGHT are booleans."
 
 (defun org-mindmap-draw-subtree (node props)
   "Write NODE node-text and box-drawing connectors onto the buffer canvas."
-  (let* ((gc-cons-threshold most-positive-fixnum)
-         (gc-cons-percentage 0.9)
-         (node-row (org-mindmap-parser-node-row node))
+  (let* ((node-row (org-mindmap-parser-node-row node))
          (node-col (org-mindmap-parser-node-col node))
          (box (org-mindmap--node-box node props))
          (node-len (car box))
@@ -680,9 +676,7 @@ Handles legacy migration of :layout left/compact/centered."
 
 (defun org-mindmap--get-state ()
   "Parse current region, return (start end props roots target-node)."
-  (let ((gc-cons-threshold most-positive-fixnum)
-        (gc-cons-percentage 0.9)
-        (region (org-mindmap-parser-get-region)))
+  (let* ((region (org-mindmap-parser-get-region)))
     (unless region (error "Not inside a mindmap region"))
     (let* ((start (car region))
            (end (cdr region))

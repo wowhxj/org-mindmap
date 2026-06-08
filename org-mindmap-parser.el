@@ -42,6 +42,17 @@
   :type 'boolean
   :group 'org-mindmap)
 
+(defcustom org-mindmap-parser-cjk-support t
+  "If non-nil, CJK symbols and other non-unit-width vars are supported, but at
+a cost of considerable slowdown. Still the package remains usable on maps of
+up to medium size (first hundreds of nodes).
+
+If you use only single-width letters--which is the case for English and probably
+all the European languages including ones using cyrillics--you can disable
+CJK support and enjoy super snappy response even on huge maps."
+  :type 'boolean
+  :group 'org-mindmap)
+
 (defcustom org-mindmap-parser-recovery-drift 10
   "Maximum distance to drift when attempting to recover broken connections."
   :type 'integer
@@ -99,7 +110,10 @@ If `org-mindmap-parser-debug' is t, format FMT with ARGS."
 (defmacro org-mindmap-parser-with-debug-batch (&rest body)
   "Run BODY with debug messages batched and written to the log buffer at the end."
   (declare (indent 0))
-  `(let ((org-mindmap-parser--debug-accumulator nil))
+  `(let ((gc-cons-threshold most-positive-fixnum)
+         (gc-cons-percentage 0.9)
+         (org-mindmap-parser--debug-accumulator nil))
+     (garbage-collect)
      (unwind-protect
          (progn ,@body)
        (when (and org-mindmap-parser-debug org-mindmap-parser--debug-accumulator)
