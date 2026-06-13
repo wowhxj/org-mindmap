@@ -1362,9 +1362,11 @@ nodes of that side."
 
 (defun org-mindmap--tab ()
   "Hijack Org's TAB key: insert a child node."
-  (let ((node (org-mindmap-find-node-at-point)))
-    (when node
-      (org-mindmap-insert-child))))
+  (when (org-mindmap-parser-region-active-p)
+    (let ((node (org-mindmap-find-node-at-point)))
+      (when node
+        (org-mindmap-insert-child)
+        t))))
 
 (defun org-mindmap--metareturn ()
   "Hijack Org's M-RET key: edit the node at point."
