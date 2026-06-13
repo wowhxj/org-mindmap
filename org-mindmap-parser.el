@@ -92,13 +92,17 @@ Use symbols you don't directly type, such as unicode plotting characters."
 (defvar org-mindmap-parser--debug-start-time nil
   "The time of the first debug message in the current series.")
 
+(defvar org-mindmap-parser--debug-caption nil
+  "The caption of the current debug messages series.")
+
 (defun org-mindmap-parser--log-message (fmt args)
   "Log formatted FMT with ARGS to the debug buffer, or accumulate if batching."
   (if (and ;; (bound-and-true-p org-mindmap-parser--debug-accumulator)
        (bound-and-true-p org-mindmap-parser--debug-start-time))
-      (push (cons (concat "%f | " fmt)
-                  (cons (- (float-time) org-mindmap-parser--debug-start-time) args))
-            org-mindmap-parser--debug-accumulator)
+      (let ((time-delta (- (float-time) org-mindmap-parser--debug-start-time) )
+            (caption (or org-mindmap-parser--debug-caption "")))
+        (push (cons (concat "[%s] %f " fmt) (cons caption (cons time-delta args)))
+              org-mindmap-parser--debug-accumulator))
     (let ((buf (get-buffer-create "*org-mindmap-debug*"))
           (msg (apply #'format (concat "%f | " fmt) (cons (float-time) args))))
       (with-current-buffer buf
@@ -113,13 +117,14 @@ If `org-mindmap-parser-debug' is t, format FMT with ARGS."
   `(when org-mindmap-parser-debug
      (org-mindmap-parser--log-message ,fmt (list ,@args))))
 
-(defmacro org-mindmap-parser-with-debug-batch (&rest body)
+(defmacro org-mindmap-parser-with-debug-batch (caption &rest body)
   "Run BODY with debug messages batched and written to the log buffer at the end."
   (declare (indent 0))
   `(let (;; (gc-cons-threshold most-positive-fixnum)
          ;; (gc-cons-percentage 0.9)
          (org-mindmap-parser--debug-accumulator nil)
-         (org-mindmap-parser--debug-start-time (float-time)))
+         (org-mindmap-parser--debug-start-time (float-time))
+         (org-mindmap-parser--debug-caption ,caption))
      (org-mindmap-parser--debug "Debug accumulator opened at %f" org-mindmap-parser--debug-start-time)
      ;; (garbage-collect)
      (unwind-protect
@@ -631,6 +636,7 @@ VISITED keeps track of visited locations."
 (defun org-mindmap-parser-parse-region (&optional start end)
   "Parse mindmap within START to END into a tree structure."
   (org-mindmap-parser-with-debug-batch
+    "Parse region"
     (unless (and start end)
       (let ((region (org-mindmap-parser-get-region)))
         (when region

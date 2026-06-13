@@ -554,7 +554,13 @@ HAS-ABOVE, HAS-BELOW, HAS-LEFT, HAS-RIGHT are booleans."
                           (let ((start (point)))
                             (move-to-column (+ conn-col 1))
                             (delete-region start (point)))
-                          (insert (org-mindmap--propertize-connector sym))))))
+                          (insert (org-mindmap--propertize-connector sym)))))
+                 ;; Fontify empty space to the right so that connector face background,
+                 ;; if set non-standard, is applied to the whole map rectangle.
+                 ;; TODO this works subpar with line wrapping, which is on in org buffers
+                 ;; most of the time.
+                 ;; (org-mindmap--move-to row (- (window-width) 2))
+                 )
         (dolist (child children)
           (org-mindmap-draw-subtree child props))))))
 
@@ -778,6 +784,7 @@ left/right padding, and root delimiters."
   "Replace region from START to END with rendered ROOTS, and focus TARGET-ID.
 Accepts mindmap PROPS."
   (org-mindmap-parser-with-debug-batch
+    "Update buffer"
     (let ((rendered (org-mindmap-render-tree roots props)))
       ;; Draw the map.
       (save-excursion
@@ -808,9 +815,11 @@ Accepts mindmap PROPS."
   "Align and format the current mindmap region based on block properties."
   (interactive)
   (org-mindmap-parser-with-debug-batch
+    "Align"
     (org-mindmap-parser--debug "Start aligning...")
     (cl-destructuring-bind (start end props roots target-node) (org-mindmap--get-state)
-      (org-mindmap--update-buffer start end roots target-node props))))
+      (org-mindmap--update-buffer start end roots target-node props))
+    (org-mindmap-parser--debug "Finish aligning.")))
 
 ;;
 ;; Structural Editing — Insert and Delete
@@ -1096,12 +1105,13 @@ all nodes and their descendants get that side."
                    (node (org-mindmap-parser-make-node :id (gensym "node")
                                                        :text full-text
                                                        :parent parent
+                                                       :depth (if parent (1+ (org-mindmap-parser-node-depth parent)) 0)
                                                        :side current-side)))
               (when sublists
-                (let ((children (mapcan (lambda (sl) (org-mindmap--lisp-to-nodes sl node current-side))
-                                        (nreverse sublists))))
-                  (setf (org-mindmap-parser-node-children node) children)))
+                (mapcan (lambda (sl) (org-mindmap--lisp-to-nodes sl node current-side))
+                        (nreverse sublists)))
               (push node nodes))))))
+    (setf (org-mindmap-parser-node-children parent) (nreverse nodes))
     (nreverse nodes)))
 
 (defun org-mindmap--get-list-context ()
@@ -1170,11 +1180,10 @@ all nodes and their descendants get that side."
       (let* ((lisp-list (save-excursion
                           (goto-char (org-element-property :begin list-elem))
                           (org-list-to-lisp)))
-             (root-node (org-mindmap-parser-make-node :id (gensym "node") :text (or root-text "")))
+             (root-node (org-mindmap-parser-make-node :id (gensym "node") :text (or root-text "") :depth 0))
              (children (org-mindmap--lisp-to-nodes lisp-list root-node))
              (inhibit-read-only t)
-             (props (org-mindmap-parse-properties nil (or  root-text "") root-node)))
-        (setf (org-mindmap-parser-node-children root-node) children)
+             (props (org-mindmap-parse-properties nil (or root-text "") (list root-node))))
         (delete-region begin end)
         (let ((rendered (org-mindmap-render-tree (list root-node) props)))
           (save-excursion
@@ -1290,7 +1299,7 @@ nodes of that side."
   (add-hook 'org-metadown-hook #'org-mindmap--metadown)
   (add-hook 'org-metaleft-hook #'org-mindmap--metaleft)
   (add-hook 'org-metaright-hook #'org-mindmap--metaright)
-  ;; (add-hook 'org-tab-first-hook #'org-mindmap--tab)
+  (add-hook 'org-tab-first-hook #'org-mindmap--tab)
   (add-hook 'org-metareturn-hook #'org-mindmap--metareturn)
   (add-hook 'org-ctrl-c-ctrl-c-hook #'org-mindmap--ctrl-c-ctrl-c))
 
