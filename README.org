@@ -34,7 +34,6 @@ The package is usable without extra mappings, but for convenience you might want
   (:map org-mode-map
         ("C-c m c" . org-mindmap-insert-child)
         ("C-c m s" . org-mindmap-insert-sibling)
-        ("C-c m r" . org-mindmap-insert-root)
         ("C-c m d" . org-mindmap-delete-node)
         ("C-c m v" . org-mindmap-switch-layout)
         ("C-c m m" . org-mindmap-list-to-mindmap)
@@ -93,7 +92,7 @@ Here is the keys reference:
 | =org-mindmap-move-up=           | =M-<up>=                       | move node one sibling up                                   |
 | =org-mindmap-promote=           | =M-<left>= or =M-<right>= [fn:2] | move node one level up, i.e. make it its parent's sibling  |
 | =org-mindmap-demote=            | =M-<left>= or =M-<right>= [fn:2] | move node one level down, i.e. make it its sibling's child |
-| =org-mindmap-delete-node=       |                              | insert a new map                                           |
+| =org-mindmap-delete-node=       |                              | delete the node and all its descendants                    |
 | =org-mindmap-switch-layout=     |                              | toggle between top and centered layouts                    |
 | =org-mindmap-switch-compaction= |                              | toggle node compaction (gap-filling) on/off                |
 | =org-mindmap-align=             |                              | re-align the mindmap                                       |
@@ -138,20 +137,18 @@ If you have a list, you can transform it to mindmap with =org-mindmap-list-to-mi
 ... and back to list with =org-mindmap-to-list=.
 
 * Visuals
-The package does its best to let you focus on the map contents and structure, by providing reasonably good visuals without ability to tweak the minuscine detains by hand:
+The package does its best to let you focus on the map contents and structure, by providing reasonably good visuals without ability to tweak the minute details by hand:
 - it arranges the nodes and wraps the wide ones so that your map fits into the window — but you can't move nodes and subtrees into arbitrary locations;
-- it paints subtrees into different colors, so that you can visually discert which node belongs to which subtree — but you can't assign individual colors to nodes.
+- it paints subtrees into different colors, so that you can visually discern which node belongs to which subtree — but you can't assign individual colors to nodes.
 
 The general idea is that you set the rules, like the layout or coloring, via block parameters and global defaults, and the engine applies them to your map.
 
 (This was initially a technical limitation--any metadata would bloat the map--but appears to be a way to keep the package focused.)
 
 ** Layouts
-No formatting inside nodes text is supported yet. You can use Org text modifiers (bold, italics, code etc) but beware the 
-
 There are two primary layouts, and a separate =compacted= compaction option:
 
-1. =top= (formerly =left=), the simplest and default layout, where the root is at the top of children.
+1. =top= (formerly =left=), the simplest layout, where the root is at the top of children.
 #+begin_src 
 ,#+begin_mindmap :layout top
 ⏴⏵ ┬─ root ng ┬─ node b ┬─ node d
@@ -163,7 +160,7 @@ There are two primary layouts, and a separate =compacted= compaction option:
 ,#+end_mindmap
 #+end_src
 
-2. =centered=, where the root node is vertically centered against its children.
+2. =centered=, the more natural layout where the root node is vertically centered against its children. This one is default.
 #+begin_src 
 ,#+begin_mindmap :layout centered :compacted t
                         ╭─ node d
@@ -174,7 +171,12 @@ There are two primary layouts, and a separate =compacted= compaction option:
 ,#+end_mindmap
 #+end_src
 
-To toggle compaction (which allows nodes to float up/down to occupy vacant space), use the =:compacted t= property or execute =org-mindmap-toggle-compaction=. Layout switching with =org-mindmap-switch-layout= cycles layout between =top= and =centered=.
+To toggle compaction (which allows nodes to float up/down to occupy vacant space), use the =:compacted t= property or execute =org-mindmap-switch-compaction=. Layout switching with =org-mindmap-switch-layout= cycles layout between =top= and =centered=.
+
+** Text Formatting
+No formatting inside a node text is supported yet. You can use Org text modifiers (bold, italics, code etc) but beware that the visual structure may break if markup characters are hidden (this won't break the map for the parser, only visual presentation will suffer). 
+
+You're safe if markup hiding is disabled or if you use markup only in the leaf nodes of the right side, with compaction disabled.
 
 ** Text Wrapping
 Long node text can be wrapped at word boundaries to keep the map within the window width.  Add a =:max-width= property (integer) to the block header.
@@ -202,7 +204,7 @@ Wrapping is purely visual: the logical node text stays unchanged (newlines repla
 The main goal of painting is to make nodes from neighbour subtrees visually discernable, so that you know from the first glance what subtree a node belongs to. There's no goal to customize each node's color, as I believe it only hinders thinking.
 
 What you can customize is:
-- the palette (via =org-mindmap-palette-fn=) and blending proportions (=org-mindmap-paint-tinge-fg= and =org-mindmap-paint-tinge-bg=);
+- the palette (via =org-mindmap-color-palette-fn=) and blending proportions (=org-mindmap-paint-tinge-fg= and =org-mindmap-paint-tinge-bg=);
 - the way colors are assigned to subtrees (via =org-mindmap-color-assign-fn=);
 - the depth from which the subtrees are painted (via =:paint-depth= parameter and =org-mindmap-default-paint-depth= option).
 
@@ -216,7 +218,7 @@ You may customize the fonts used for the map (see =M-x customize-group org-mindm
 Some fonts declare double size for symbols which are used as root node markers by default. You may either change your font or change default symbols for the root node (make sure those symbols are not ones used to draw map connectors and will not occur in your map nodes as text).
 
 ** Gaps in Vertical Lines
-The package tries to eleminate those gaps, so if you see gaps between vertical connectors on adjacent lines, there could be those culprits:
+The package tries to eliminate those gaps, so if you see gaps between vertical connectors on adjacent lines, the culprits could be:
 1. You have a package or mode that additionally propertizes text in your org buffer, e.g. =org-indent=. Try disabling it and see what happens.
 2. Your lines include characters higher than the regular ones. I saw that with CJK glyphs.
 
