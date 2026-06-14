@@ -1425,19 +1425,6 @@ nodes of that side."
     (org-mindmap-edit-node)
     t))
 
-;; Register the hooks
-(defun org-mindmap--register-hooks ()
-  "Register org-mindmap hooks into `org-mode'."
-  (add-hook 'org-metaup-hook #'org-mindmap--metaup)
-  (add-hook 'org-metadown-hook #'org-mindmap--metadown)
-  (add-hook 'org-metaleft-hook #'org-mindmap--metaleft)
-  (add-hook 'org-metaright-hook #'org-mindmap--metaright)
-  (add-hook 'org-tab-first-hook #'org-mindmap--tab)
-  (add-hook 'org-metareturn-hook #'org-mindmap--metareturn)
-  (add-hook 'org-ctrl-c-ctrl-c-hook #'org-mindmap--ctrl-c-ctrl-c))
-
-(org-mindmap--register-hooks)
-
 (defun org-mindmap-return ()
   "If on a mindmap node, insert a sibling, otherwise call `org-return'."
   (interactive)
@@ -1448,8 +1435,41 @@ nodes of that side."
           (org-return)))
     (org-return)))
 
-(define-key org-mode-map (kbd "RET") #'org-mindmap-return)
+(defvar org-mindmap-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'org-mindmap-return)
+    map))
+
+(define-minor-mode org-mindmap-mode
+  "Editable mindmap visualization within org-mode."
+  :lighter " ⅄"
+  :keymap org-mindmap-mode-map
+  (if org-mindmap-mode
+      (progn
+        (add-hook 'org-metaup-hook #'org-mindmap--metaup t)
+        (add-hook 'org-metadown-hook #'org-mindmap--metadown t)
+        (add-hook 'org-metaleft-hook #'org-mindmap--metaleft t)
+        (add-hook 'org-metaright-hook #'org-mindmap--metaright t)
+        (add-hook 'org-tab-first-hook #'org-mindmap--tab t)
+        (add-hook 'org-metareturn-hook #'org-mindmap--metareturn t)
+        (add-hook 'org-ctrl-c-ctrl-c-hook #'org-mindmap--ctrl-c-ctrl-c t))
+    (remove-hook 'org-metaup-hook #'org-mindmap--metaup t)
+    (remove-hook 'org-metadown-hook #'org-mindmap--metadown t)
+    (remove-hook 'org-metaleft-hook #'org-mindmap--metaleft t)
+    (remove-hook 'org-metaright-hook #'org-mindmap--metaright t)
+    (remove-hook 'org-tab-first-hook #'org-mindmap--tab t)
+    (remove-hook 'org-metareturn-hook #'org-mindmap--metareturn t)
+    (remove-hook 'org-ctrl-c-ctrl-c-hook #'org-mindmap--ctrl-c-ctrl-c t)))
+
 (add-to-list 'org-structure-template-alist '("m" . "mindmap"))
+
+(defun org-mindmap-unload-function ()
+  "Clean up global state when `org-mindmap' is unloaded."
+  (setq org-structure-template-alist
+        (cl-delete "mindmap" org-structure-template-alist
+                   :test #'string= :key #'cdr))
+  ;; Return nil so standard hook/keymap/variable unloading proceeds.
+  nil)
 
 (provide 'org-mindmap)
 
