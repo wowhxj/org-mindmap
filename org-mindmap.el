@@ -3,7 +3,7 @@
 ;; Copyright (C) 2026 krvkir
 
 ;; Author: krvkir <krvkir@gmail.com>
-;; Version: 0.2.2
+;; Version: 0.3
 ;; Keywords: org, tools, outlines
 ;; Package-Requires: ((emacs "29.1") (org "9.1"))
 ;; URL: https://github.com/krvkir/org-mindmap

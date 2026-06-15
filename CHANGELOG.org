@@ -1,0 +1,67 @@
+#+TITLE: org-mindmap Changelog
+
+* 0.3
+
+** Breaking changes
+- Package now requires Emacs 29.1 or later (previously 26.1).
+- =:layout= values =left= and =compact= are deprecated; use =:layout top=
+  with =:compacted nil= or =:compacted t= instead.  Legacy values are
+  still accepted and auto-migrated.
+
+** Layout and compaction
+- =:layout= and =:compacted= are now independent block parameters.
+  =:layout= accepts =top= or =centered=; =:compacted= is a boolean
+  that controls gap-filling behavior regardless of layout.
+- New commands ~org-mindmap-switch-layout~ and
+  ~org-mindmap-switch-compaction~ toggle these settings independently.
+
+** Node text wrapping
+- =:max-width= block parameter controls soft word-wrap of node text.
+  Accepts an integer column limit, =nil= (no wrapping), or =auto=
+  (calculate from window width and tree depth).
+- =:wrap-leaves= controls leaf-node wrapping: =nil= disables, =t=
+  enables, and a float value acts as a multiplier on max-width for
+  leaves.
+- ~org-mindmap-min-width~ custom variable prevents orphaned words by
+  joining short lines with the previous line.
+- Default max-width is =auto= when =:max-width= is not specified.
+- Wrapping is purely visual: the logical node text stays unchanged 
+  (newlines replace spaces when rendering, spaces replace newlines 
+  when parsing).
+
+** Cursor position preservation
+- The parser now tracks the cursor offset within node text across
+  parse-render cycles.  After structural edits the point is restored
+  to the same logical position within the edited node.
+
+** Subtree coloring
+- Subtrees can be painted in different colors for visual
+  differentiation.
+- ~org-mindmap-color-palette-fn~ controls the palette source: from
+  font-lock faces, rainbow-delimiters, or a fixed RGB triplet.
+- ~org-mindmap-color-assign-fn~ controls color assignment: by node
+  position in tree or by text hash.
+- ~org-mindmap-paint-tinge-fg~ and ~org-mindmap-paint-tinge-bg~
+  control the blend ratio of colors with the underlying faces.
+- =:paint-depth= block parameter and
+  ~org-mindmap-default-paint-depth~ control the tree depth at which
+  painting starts.
+
+** CJK support
+- Chinese, Japanese, and Korean characters are now supported.
+
+** Connector customization
+- ~org-mindmap-parser-connectors~ allows customizing the Unicode
+  box-drawing character set used for tree rendering.  Multiple
+  connector packs can be defined; the first pack is used for
+  rendering, all packs are recognized during parsing.
+
+** Minor mode
+- ~org-mindmap-mode~ is now a proper minor mode with its own keymap.
+  It binds =RET=, =TAB=, =M-RET=, =M-<up>=, =M-<down>=,
+  =M-<left>=, and =M-<right>= for structural editing within mindmap
+  blocks.
+
+* 0.2.2
+
+Initial public release.

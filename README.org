@@ -5,27 +5,33 @@ Mind maps for Org, in pure Unicode, for quick and easy editing.
 [[./img/map.png]]
 
 * What is it
-A tool to draw mind maps in an Org Mode blocks, optimized for fast input and editing. Not perfect visually, but pretty enough to be attractive. The map is just text, no rendering is required. And since a mind map is just a list drawn in a fancy way, you can convert a list into a map and the other way around.
+A tool to draw mind maps in Org Mode blocks, optimized for fast input and editing. Not perfect visually, but pretty enough to be attractive. The map is just text, no rendering is required. And since a mind map is just a list drawn in a fancy way, you can convert a list into a map and the other way around.
 
-Just =C-c C-, m= anywhere in an Org buffer and you can start writing. Move the nodes around as your map grows. Focus on the content, let the engine handle layout and coloring. 
+Just =C-c C-, m= anywhere in an Org buffer and start writing. Move nodes around as your map grows. Focus on the content, let the engine handle the visuals. 
 
 * Installation
 If you're using Emacs version 29 or later:
 #+begin_src elisp
 (use-package org-mindmap
   :vc (:url "https://github.com/krvkir/org-mindmap.git" :rev :newest)
-  :after org)
+  :after org
+  :config
+  (add-hook 'org-mode-hook #'org-mindmap-mode))
 #+end_src
 
 If you're using Emacs version prior to 29, clone this repo and use this:
 #+begin_src elisp
 (use-package org-mindmap
   :load-path "~/repos/emacs/org-mindmap/"
-  :after org)
+  :after org
+  :config
+  (add-hook 'org-mode-hook #'org-mindmap-mode))
 #+end_src
 
 ** Configuration example
-The package defines a minor mode (=org-mindmap-mode=) which you'll need to turn on to work with maps. It binds frequently used editing commands (see Usage). You may want to hook this minor mode to Org Mode so that it auto-enables in each Org buffer. You also may want to map other commands, like list-to/from-map conversion and layout switching, into =C-c m= prefix space:
+The package defines a minor mode (=org-mindmap-mode=) which you'll need to turn on to work with maps. It binds frequently used editing commands (see Usage). You may want to hook this minor mode to Org Mode (as it's done in setup snippets above) so that it auto-enables in each Org buffer, otherwise you'll need to enable it manually in each Org mode buffer.
+
+You may also want to map some other commands, like list-to/from-map conversion and layout switching, into =C-c m= prefix space:
 #+begin_src elisp
 (use-package org-mindmap
   :vc (:url "https://github.com/krvkir/org-mindmap.git" :rev :newest)
@@ -177,7 +183,7 @@ There are two primary layouts, and a separate =compacted= compaction option:
 To toggle compaction (which allows nodes to float up/down to occupy vacant space), use the =:compacted t= property or execute =org-mindmap-switch-compaction=. Layout switching with =org-mindmap-switch-layout= cycles layout between =top= and =centered=.
 
 ** Text Formatting
-No formatting inside a node text is supported yet. You can use Org text modifiers (bold, italics, code etc) but beware that the visual structure may break if markup characters are hidden (this won't break the map for the parser, only visual presentation will suffer). 
+No formatting inside a node text is supported yet. You can use Org text modifiers (bold, italics, code etc.) but beware that the visual structure may break if markup characters are hidden (this won't break the map for the parser, only visual presentation will suffer). 
 
 You're safe if markup hiding is disabled or if you use markup only in the leaf nodes of the right side, with compaction disabled.
 
