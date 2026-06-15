@@ -239,7 +239,7 @@ I did my best to support CJK characters, though I speak no Chinese, Japanese or 
 You'll need a font which sets width for those characters to be exactly double of the regular characters, otherwise your map will be visually crumpled, vertical connectors will not align.
 
 ** Right-to-Left
-Left-to-right text may work, but it was not tested. If you have bugs, please report.
+Right-to-left text may work, but it was not tested. If you have bugs or, on the opposite, can confirm that it works, please report.
 
 * Examples
 Here's one more complex example mindmap for a chapter from Sönke Ahrens — How to Take Smart Notes.
