@@ -5,7 +5,7 @@
 ;; Author: krvkir <krvkir@gmail.com>
 ;; Version: 0.2.2
 ;; Keywords: org, tools, outlines
-;; Package-Requires: ((emacs "26.1") (org "9.1"))
+;; Package-Requires: ((emacs "29.1") (org "9.1"))
 ;; URL: https://github.com/krvkir/org-mindmap
 
 ;; This file is not part of GNU Emacs.
@@ -188,12 +188,12 @@ with the other theme colors."
           (color-name-to-rgb (or (face-background face nil t) "black"))
           org-mindmap-paint-tinge-bg)))
 
-(defun org-mindmap-assign-color-by-num (node num)
+(defun org-mindmap-assign-color-by-num (_node num)
   "Assign a color to a NODE in a tree by its NUM in the tree."
   (nth (mod num (length org-mindmap-color-palette))
        org-mindmap-color-palette))
 
-(defun org-mindmap-assign-color-by-text (node num)
+(defun org-mindmap-assign-color-by-text (node _num)
   "Assign a color to a NODE by its text, regardless its NUM in the tree."
   (let ((i (string-to-number (substring (secure-hash 'md5 (org-mindmap-parser-node-text node)) 0 8) 16)))
     (nth (mod i (length org-mindmap-color-palette))
@@ -214,23 +214,23 @@ since we don't store any parsing metadata."
 ;; helper fns
 
 (defun org-mindmap--propertize-connector (str &optional color)
-  "Apply face and optional read-only properties to connector STR.
-Ensures properties are not sticky to allow editing node text at the boundary."
+  "Apply face and optional COLOR to connector STR.
+Ensures properties are not sticky to allow editing text at the boundary."
   (let* ((face (if color
                    (list (list :foreground (org-mindmap--tinge-fg 'org-mindmap-face-connectors color))
                          'org-mindmap-face-connectors)
                  'org-mindmap-face-connectors))
          (props (list 'face face
                       'font-lock-face face
-                      ;; 'rear-nonsticky '(read-only face font-lock-face)
-                      ;; 'front-sticky '(read-only face font-lock-face)
+                      'rear-nonsticky '(read-only face font-lock-face)
+                      'front-sticky '(read-only face font-lock-face)
                       'line-height t)))
     (when org-mindmap-protect-connectors
       (setq props (plist-put props 'read-only t)))
     (apply #'propertize str props)))
 
 (defun org-mindmap--propertize-text (str &optional color)
-  "Apply text face to STR."
+  "Apply text face and optional COLOR to STR."
   (let ((face (if color
                   (list (list :background (org-mindmap--tinge-bg 'org-mindmap-face-text color))
                         'org-mindmap-face-text)
@@ -284,7 +284,7 @@ If START is non-nil, pad at the beginning; otherwise at the end."
       raw-text)))
 
 (defun org-mindmap--add-root-delimiters (text &optional pair)
-  "Add root delimiters to the line of TEXT."
+  "Add root delimiters from PAIR to the line of TEXT."
   (let ((left (if pair (car pair) " "))
         (right (if pair (cdr pair) " ")))
     (if (string= text "")
@@ -292,8 +292,7 @@ If START is non-nil, pad at the beginning; otherwise at the end."
       (concat left " " text " " right))))
 
 (defun org-mindmap--join-short-lines (lines)
-  "Minimal width limit for node line. Lines of this or lower length are joined with previous lines,
-e.g. 'an apple' won't be splitted into two lines 'an' and 'apple' if this var is set to 2 or more."
+  "Join short LINES with previous lines to avoid orphaned words."
   (let ((acc (list (car lines)))
         (width (string-width (car lines))))
     (dolist (line (cdr lines))
@@ -310,7 +309,7 @@ e.g. 'an apple' won't be splitted into two lines 'an' and 'apple' if this var is
     (nreverse acc)))
 
 (defun org-mindmap--node-display-lines (node props)
-  "Return a list of lines to represent a NODE, respecting PROPS :max-width and :wrap-leaves options."
+  "Return display lines for NODE respecting :max-width and :wrap-leaves PROPS."
   (let* ((text (org-mindmap-parser-node-text node))
          (side (org-mindmap-parser-node-side node))
          (is-leaf (not (org-mindmap-parser-node-children node)))
@@ -372,12 +371,12 @@ Return (width height . lines) cons cell."
       children)))
 
 (defun org-mindmap--descendants (node)
-  "Return NODE descendants (children, grandchildren etc) from both sides of the tree."
+  "Return all descendants of NODE from both sides of the tree."
   (cl-loop for child in (org-mindmap-parser-node-children node)
            append (cons child (org-mindmap--descendants child))))
 
 (defun org-mindmap--subtree (node)
-  "Return NODE subtree (the node itself and its children, grandchildren etc) from both sides of the tree."
+  "Return NODE and all its descendants from both sides of the tree."
   (cons node (org-mindmap--descendants node)))
 
 (defun org-mindmap--side-descendants (node side)
@@ -396,8 +395,7 @@ Return (width height . lines) cons cell."
 
 ;; Occupancy helpers
 (defun org-mindmap--node-occupancy (node props)
-  "Return (start-col end-col) occupied by NODE with SPACING,
-including its horizontal connector from parent, respecting MAX-WIDTH and WRAP-LEAVES options."
+  "Return occupancy as (start-col end-col) for NODE respecting PROPS."
   (let* ((side (org-mindmap-parser-node-side node))
          (row (org-mindmap-parser-node-row node))
          (col (org-mindmap-parser-node-col node))
@@ -414,7 +412,7 @@ including its horizontal connector from parent, respecting MAX-WIDTH and WRAP-LE
 
 ;; Tree compaction helpers
 (defun org-mindmap--check-overlap-subtree (rel-occ base-row delta occupied-map)
-  "Check if shifting rel-occ by base-row + delta overlaps with occupied-map."
+  "Check if shifting REL-OCC by BASE-ROW + DELTA overlaps OCCUPIED-MAP."
   (cl-loop for (rel-row start-col end-col) in rel-occ
            thereis
            (let ((r (+ rel-row base-row delta)))
@@ -426,7 +424,7 @@ including its horizontal connector from parent, respecting MAX-WIDTH and WRAP-LE
   "Dynamic cache for subtree occupancy lists.")
 
 (defun org-mindmap--get-subtree-occupancy (node props)
-  "Return a list of (relative-row start-col end-col) for NODE subtree relative to NODE's row."
+  "Return relative occupancy list for NODE subtree based on PROPS."
   (if-let* ((cache org-mindmap--subtree-occ-cache)
             (cached (gethash node cache)))
       cached
@@ -470,14 +468,14 @@ including its horizontal connector from parent, respecting MAX-WIDTH and WRAP-LE
     (org-mindmap--shift-subtree-rows child delta)))
 
 (defun org-mindmap--max-row-subtree (node props)
-  "Find the maximum row of NODE and all its descendants."
+  "Find the maximum row of NODE and its descendants, using PROPS."
   (let ((max-r (+ (org-mindmap-parser-node-row node) (1- (cadr (org-mindmap--node-box node props))))))
     (dolist (child (org-mindmap-parser-node-children node))
       (setq max-r (max max-r (org-mindmap--max-row-subtree child props))))
     max-r))
 
-(defun org-mindmap--update-occupied-map (occupied-map node delta props)
-  "Update occupied cells OCCUPIED-MAP from NODE subtree locations shifted by DELTA."
+(defun org-mindmap--update-occupied-map (occupied-map node props)
+  "Update OCCUPIED-MAP with NODE subtree locations using PROPS."
   (let* ((row (org-mindmap-parser-node-row node))
          (subtree-rel-occ (org-mindmap--get-subtree-occupancy node props)))
     (dolist (occ subtree-rel-occ)
@@ -504,16 +502,16 @@ Requires PREV-NODE (may be nil) and map PROPS."
                 (while (org-mindmap--check-overlap-subtree subtree-rel-occ row delta occupied-map)
                   (incf delta))
                 delta)
-            ;; ... otherwise just take the the next unoccupied row
-            (setq delta 0)
-            (when prev-node
-              (setq delta (1+ (org-mindmap--max-row-subtree prev-node props))))
-            delta)))
+            ;; ... otherwise just take the next unoccupied row
+            (let ((d 0))
+              (when prev-node
+                (setq d (1+ (org-mindmap--max-row-subtree prev-node props))))
+              d))))
     ;; Shift each child node downwards in the subtree.
     (when (> delta 0)
       (org-mindmap--shift-subtree-rows node delta))
     ;; Mark the tree location in the occupied map.
-    (org-mindmap--update-occupied-map occupied-map node delta props)))
+    (org-mindmap--update-occupied-map occupied-map node props)))
 
 ;; Subtree builder
 (defun org-mindmap--min-row (nodes)
@@ -523,7 +521,7 @@ Requires PREV-NODE (may be nil) and map PROPS."
     0))
 
 (defun org-mindmap--max-row (nodes props)
-  "Find maximal row number among NODES if any, otherwise return 0."
+  "Find maximal row number among NODES using PROPS, or 0 if none."
   ;; (if nodes (apply #'max (mapcar #'org-mindmap-parser-node-row nodes)) 0)
   (if nodes
       (cl-loop for node in nodes maximize
@@ -531,7 +529,7 @@ Requires PREV-NODE (may be nil) and map PROPS."
     0))
 
 (defun org-mindmap--center-subtree (node props)
-  "Vertically center NODE's tree."
+  "Vertically center NODE's tree, using PROPS for box sizes."
   (let* ((left-descendants (org-mindmap--side-descendants node 'left))
          (l-min (org-mindmap--min-row left-descendants))
          (l-max (org-mindmap--max-row left-descendants props))
@@ -627,13 +625,12 @@ HAS-ABOVE, HAS-BELOW, HAS-LEFT, HAS-RIGHT are booleans."
      (t (char-to-string (nth 1 pack))))))
 
 (defun org-mindmap-draw-subtree (node props &optional color)
-  "Write NODE node-text and box-drawing connectors onto the buffer canvas."
+  "Write NODE text and connectors to buffer, using PROPS and optional COLOR."
   (let* ((node-row (org-mindmap-parser-node-row node))
          (node-col (org-mindmap-parser-node-col node))
          (box (org-mindmap--node-box node props))
          (node-len (car box))
-         (node-lines (cddr box))
-         (depth (org-mindmap-parser-node-depth node)))
+         (node-lines (cddr box)))
     ;; Insert the node text.
     (cl-loop for i below (length node-lines) do
              (org-mindmap--move-to (+ node-row i) node-col)
@@ -692,8 +689,8 @@ HAS-ABOVE, HAS-BELOW, HAS-LEFT, HAS-RIGHT are booleans."
                         (org-mindmap-draw-subtree child props child-color))))))))
 
 (defun org-mindmap-render-tree (roots &optional props)
-  "Render ROOTS evaluating the specified :layout geometry and :spacing from map PROPS.
-If :compacted is non-nil, nodes fill vacant vertical spaces."
+  "Render ROOTS with given :layout and :spacing from PROPS.
+When :compacted is non-nil, nodes fill vacant vertical spaces."
   (if (null roots)
       ""
     (org-mindmap-build-tree-layout roots props)
@@ -710,8 +707,9 @@ If :compacted is non-nil, nodes fill vacant vertical spaces."
 ;;
 
 (defun org-mindmap-parse-properties (start &optional props-string roots)
-  "Extract property list from the block header at START, or from PROPS-STRING if given.
-Handles legacy migration of :layout left/compact/centered."
+  "Extract property list from block header at START or PROPS-STRING.
+ROOTS are used for default value calculation.
+Handles legacy :layout left/compact/centered migration."
   (when (not props-string)
     (save-excursion
       (goto-char start)
@@ -728,11 +726,11 @@ Handles legacy migration of :layout left/compact/centered."
             (cond
              ;; legacy layouts:
              ;; ... "left" means top and sparse
-             ((eq val "left")
+             ((string= val "left")
               (setq props (plist-put props :layout "top"))
               (setq props (plist-put props :compacted nil)))
              ;; ... "compact" means top and compacted
-             ((eq val "compact")
+             ((string= val "compact")
               (setq props (plist-put props :layout "top"))
               (setq props (plist-put props :compacted t)))
              (t
@@ -752,7 +750,8 @@ Handles legacy migration of :layout left/compact/centered."
       (org-mindmap--populate-properties props roots))))
 
 (defun org-mindmap--populate-properties (&optional props roots)
-  "Populate PROOS plist with default properties for missing keys."
+  "Populate PROPS plist with default values for missing keys.
+ROOTS are used to determine auto max-width."
   (setq props (plist-put props :layout
                          (intern
                           (or (plist-get props :layout)
@@ -793,7 +792,7 @@ Handles legacy migration of :layout left/compact/centered."
   props)
 
 (defun org-mindmap--node-at-point (roots)
-  "Traverse ROOTS and return the first node with non-nil `point-offset', or nil if none found."
+  "Traverse ROOTS and return the first node with `point-offset'."
   (catch 'found
     (let ((traverse nil))
       (setq traverse
@@ -807,7 +806,7 @@ Handles legacy migration of :layout left/compact/centered."
       nil)))
 
 (defun org-mindmap--calculate-max-width (roots)
-  "Return the optimal max-width for the current window and a tree growing from ROOTS."
+  "Return optimal max-width for the current window and tree ROOTS."
   (let* ((root (car roots))
          (descendants (org-mindmap--descendants root))
          (sides (seq-group-by #'org-mindmap-parser-node-side descendants))
@@ -829,9 +828,8 @@ Handles legacy migration of :layout left/compact/centered."
       (list start end props roots target-node))))
 
 (defun org-mindmap--restore-point (node props)
-  "Return (row col) buffer-relative coordinates for NODE.
-Use display lines from PROPS. Handles multi-line wrapped nodes,
-left/right padding, and root delimiters."
+  "Return (row col) buffer-relative coordinates for NODE using PROPS.
+Handles multi-line wrapped nodes, left/right padding, and root delimiters."
   (when-let* ((box (org-mindmap--node-box node props))
               (lines (cddr box))
               (row (org-mindmap-parser-node-row node))
@@ -914,8 +912,8 @@ left/right padding, and root delimiters."
     (org-mindmap-align)))
 
 (defun org-mindmap--update-buffer (start end roots &optional target-node props)
-  "Replace region from START to END with rendered ROOTS, and focus TARGET-ID.
-Accepts mindmap PROPS."
+  "Replace region START to END with rendered ROOTS, focus TARGET-NODE.
+Uses PROPS for rendering."
   (org-mindmap-parser-with-debug-batch
     "Update buffer"
     (let ((rendered (org-mindmap-render-tree roots props)))
@@ -960,7 +958,7 @@ Accepts mindmap PROPS."
 
 (defun org-mindmap-find-node-at-point ()
   "Locate the node corresponding to the cursor position."
-  (cl-destructuring-bind (start end props roots target-node) (org-mindmap--get-state)
+  (cl-destructuring-bind (_start _end _props _roots target-node) (org-mindmap--get-state)
     target-node))
 
 (defun org-mindmap-edit-node ()
@@ -1241,8 +1239,8 @@ all nodes and their descendants get that side."
                                                        :depth (if parent (1+ (org-mindmap-parser-node-depth parent)) 0)
                                                        :side current-side)))
               (when sublists
-                (mapcan (lambda (sl) (org-mindmap--lisp-to-nodes sl node current-side))
-                        (nreverse sublists)))
+                (mapc (lambda (sl) (org-mindmap--lisp-to-nodes sl node current-side))
+                      (nreverse sublists)))
               (push node nodes))))))
     (setf (org-mindmap-parser-node-children parent) (nreverse nodes))
     (nreverse nodes)))
@@ -1314,7 +1312,7 @@ all nodes and their descendants get that side."
                           (goto-char (org-element-property :begin list-elem))
                           (org-list-to-lisp)))
              (root-node (org-mindmap-parser-make-node :id (gensym "node") :text (or root-text "") :depth 0))
-             (children (org-mindmap--lisp-to-nodes lisp-list root-node))
+             (_children (org-mindmap--lisp-to-nodes lisp-list root-node))
              (inhibit-read-only t)
              (props (org-mindmap-parse-properties nil (or root-text "") (list root-node))))
         (delete-region begin end)
@@ -1443,7 +1441,7 @@ nodes of that side."
     map))
 
 (define-minor-mode org-mindmap-mode
-  "Editable mindmap visualization within org-mode."
+  "Editable mindmap visualization within `org-mode'."
   :lighter " ⅄"
   :keymap org-mindmap-mode-map
   (if org-mindmap-mode

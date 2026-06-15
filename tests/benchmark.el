@@ -30,7 +30,6 @@
     (let* (;; emulate interactive usage
            (gc-cons-threshold 800000)
            (gc-cons-percentage 0.1)
-           ;; (org-mindmap-parser-cjk-support nil)
            (region (org-mindmap-parser-get-region))
            (start (car region))
            (end (cdr region))

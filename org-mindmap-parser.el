@@ -5,7 +5,7 @@
 ;; Author: krvkir <krvkir@gmail.com>
 ;; Version: 0.2.2
 ;; Keywords: org, tools, outlines
-;; Package-Requires: ((emacs "26.1"))
+;; Package-Requires: ((emacs "29.1"))
 ;; URL: https://github.com/krvkir/org-mindmap
 
 ;; This file is not part of GNU Emacs.
@@ -42,17 +42,6 @@
   :type 'boolean
   :group 'org-mindmap)
 
-(defcustom org-mindmap-parser-cjk-support t
-  "If non-nil, CJK symbols and other non-unit-width vars are supported, but at
-a cost of considerable slowdown. Still the package remains usable on maps of
-up to medium size (first hundreds of nodes).
-
-If you use only single-width letters--which is the case for English and probably
-all the European languages including ones using cyrillics--you can disable
-CJK support and enjoy super snappy response even on huge maps."
-  :type 'boolean
-  :group 'org-mindmap)
-
 (defcustom org-mindmap-parser-recovery-drift 10
   "Maximum distance to drift when attempting to recover broken connections."
   :type 'integer
@@ -60,7 +49,7 @@ CJK support and enjoy super snappy response even on huge maps."
 
 (defcustom org-mindmap-parser-connectors '((?─ ?│ ?┬ ?┴ ?├ ?┤ ?┼ ?╭ ?╮ ?╰ ?╯)
                                            (?─ ?│ ?┬ ?┴ ?├ ?┤ ?┼ ?┌ ?┐ ?└ ?┘))
-  "List of connector packs. The first pack is used for rendering.
+  "List of connector packs.  The first pack is used for rendering.
 Indices: 0:Horizontal, 1:Vertical, 2:T-Down, 3:T-Up, 4:T-Right, 5:T-Left,
          6:Cross, 7:Corner-TL, 8:Corner-TR, 9:Corner-BL, 10:Corner-BR"
   :type '(repeat (list character character character character character
@@ -109,7 +98,7 @@ Use symbols you don't directly type, such as unicode plotting characters."
         (setq buffer-undo-list t)
         (save-excursion
           (goto-char (point-max))
-          (insert msg "\n")))))) 
+          (insert msg "\n"))))))
 
 (defmacro org-mindmap-parser--debug (fmt &rest args)
   "Log debug messages to the dedicated trace buffer.
@@ -118,7 +107,7 @@ If `org-mindmap-parser-debug' is t, format FMT with ARGS."
      (org-mindmap-parser--log-message ,fmt (list ,@args))))
 
 (defmacro org-mindmap-parser-with-debug-batch (caption &rest body)
-  "Run BODY with debug messages batched and written to the log buffer at the end."
+  "Run BODY with debug messages batched under CAPTION and logged at the end."
   (declare (indent 0))
   `(let (;; (gc-cons-threshold most-positive-fixnum)
          ;; (gc-cons-percentage 0.9)
@@ -276,7 +265,7 @@ If string consists of single-width characters only, return S directly for speed.
   (and char (gethash char (org-mindmap-parser--get-symbol-registry))))
 
 (defun org-mindmap-parser--grid-get-all (lines row col)
-  "Safely fetch all characters from 2D array of strings or visual vectors LINES at ROW and COL."
+  "Safely fetch all characters at ROW and COL from 2D array LINES."
   (and (>= row 0) (< row (length lines))
        (let ((line (aref lines row)))
          (and (>= col 0) (< col (length line))
@@ -286,7 +275,7 @@ If string consists of single-width characters only, return S directly for speed.
                   (when val (list val))))))))
 
 (defun org-mindmap-parser--grid-get (lines row col)
-  "Safely fetch a character from 2D array of strings or visual vectors LINES at ROW and COL."
+  "Safely fetch a character at ROW and COL from 2D array LINES."
   (and (>= row 0) (< row (length lines))
        (let ((line (aref lines row)))
          (and (>= col 0) (< col (length line))
@@ -328,12 +317,11 @@ Starts from ROW and COL."
   (gethash (+ (* row 1000) col) visited))
 
 (defun org-mindmap-parser--mark-visited (row col visited)
-  "Mark a location at ROW and COL as VISITED by the parser, so that it wouldn't consume it twice."
+  "Mark location at ROW and COL as VISITED to avoid double consumption."
   (puthash (+ (* row 1000) col) t visited))
 
-(defun org-mindmap-parser--consume-spaces (lines row col dir visited)
-  "Greedily consume non-connector characters in LINES in DIR to form a node label.
-Starts from ROW and COL.  VISITED marks the consumed cells."
+(defun org-mindmap-parser--consume-spaces (lines row col dir _visited)
+  "Consume non-connector whitespace in LINES at (ROW,COL) in DIR."
   (let ((curr-col col)
         (dx (car dir)))
     (if (or (= dx 0) (< row 0) (>= row (length lines)))
@@ -348,20 +336,17 @@ Starts from ROW and COL.  VISITED marks the consumed cells."
         curr-col))))
 
 (defun org-mindmap-parser--all-whitespaces (lines row col dir n)
-  "Check if, starting from ROW and COL, all N symbols in DIR direction
-in LINES are whitespaces."
+  "Check if N symbols in DIR from (ROW,COL) in LINES are all whitespace."
   (let ((dx (car dir)))
     (if (or (= dx 0) (< row 0) (>= row (length lines)))
         t
-      (let* ((line (aref lines row)))
-        (cl-loop for i below n
-                 for char = (org-mindmap-parser--grid-get lines row (+ col (* i dx)))
-                 always (org-mindmap-parser--is-whitespace char))))))
+      (cl-loop for i below n
+               for char = (org-mindmap-parser--grid-get lines row (+ col (* i dx)))
+               always (org-mindmap-parser--is-whitespace char)))))
 
 (defun org-mindmap-parser--search-back (lines row col limit dir visited)
-  "Move cursor in LINES text block from ROW and COL to the reverse of DIR
-direction until it stumbles on a visited cell in VISITED registry, a connector,
-or 2 consecutive spaces, or until it reach the shift LIMIT."
+  "Move backwards in LINES from (ROW,COL) in DIR to connector or LIMIT.
+Stops at VISITED cells or double spaces."
   (let* ((curr-col col)
          (dx (car dir)))
     (if (= dx 0)
@@ -382,10 +367,10 @@ or 2 consecutive spaces, or until it reach the shift LIMIT."
 
 
 (defun org-mindmap-parser--consume-text (lines row col dir visited &optional point-row point-col base-offset keep-empty)
-  "Greedily consume text, i.e. non-connector non-empty symbols, in LINES in DIR,
-in ROW, starting from COL, marking consumed symbols as VISITED.
-If POINT-ROW and POINT-COL match a consumed character, compute and return
-the logical offset (BASE-OFFSET + position within chars) of the cursor."
+  "Consume text in LINES at (ROW,COL) in DIR, marking VISITED.
+POINT-ROW and POINT-COL match cursor position for offset computation.
+BASE-OFFSET is added to the character index for logical cursor position.
+When KEEP-EMPTY is non-nil, empty text is returned rather than nil."
   (let* ((dx (car dir))
          (chars nil)
          (offset nil))
@@ -533,7 +518,8 @@ VISITED keeps track of visited locations."
   (when (org-mindmap-parser-get-region) t))
 
 (defun org-mindmap-parser--find-explicit-root (lines-strings lines visited &optional point-row point-col)
-  "Find an explicit root in LINES-STRINGS, and parse using visual vectors in LINES."
+  "Find an explicit root in LINES-STRINGS using visual vectors LINES.
+VISITED tracks consumed cells, POINT-ROW/POINT-COL handle cursor offset."
   (cl-loop for (left . right) in org-mindmap-parser-root-delimiters thereis
            (cl-loop for row below (length lines-strings) thereis
                     (let ((line (aref lines-strings row))
@@ -556,7 +542,8 @@ VISITED keeps track of visited locations."
                           node))))))
 
 (defun org-mindmap-parser--find-implicit-root (lines visited &optional point-row point-col)
-  "Find an implicit root in LINES.  Mark visited cells in VISITED."
+  "Find an implicit root in LINES, marking visited cells in VISITED.
+POINT-ROW and POINT-COL track the cursor position for node focus."
   (let ((height (length lines))
         (implicit-conn-root nil)
         (implicit-text-root nil))
@@ -601,7 +588,8 @@ VISITED keeps track of visited locations."
     (org-mindmap-parser--sort-tree child)))
 
 (defun org-mindmap-parser--join-continuations (node lines dir side visited &optional point-row point-col)
-  "Check if there are extra lines below the node, and if any, attach them to the node text."
+  "Join wrapped LINES below NODE to its text on the given SIDE.
+VISITED tracks consumed cells, POINT-ROW/POINT-COL handle cursor offset."
   ;; For each child node:
   (dolist (child-node (org-mindmap-parser-node-children node))
     ;; Process its children.

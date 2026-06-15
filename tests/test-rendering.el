@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 (require 'org-mindmap)
 
 (defun org-mindmap-test-build-ast (sexp parent side)

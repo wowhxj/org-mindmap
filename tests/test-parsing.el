@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 (require 'org)
 (load-file "org-mindmap.el")
 
