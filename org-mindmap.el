@@ -58,26 +58,33 @@ a denser layout.  When nil, children are stacked sequentially."
   :group 'org-mindmap)
 
 (defcustom org-mindmap-default-max-width 'auto
-  "Default maximal width limit for node text soft wrapping:
-- nil: no wrapping;
-- a non-negative integer: constant max width (0 means a newline after each word);
-- 'auto: try to fit the tree into the window, calculating max-width based on tree depth and window width."
+  "Default maximal width for node text soft wrapping.
+If nil, no wrapping is applied.
+If a non-negative integer, constant max width is used (0 means
+a newline after each word).
+If \\='auto, calculate max-width based on tree depth and the
+current window width."
   :type '(choice integer (const auto))
   :group 'org-mindmap)
 
 (defcustom org-mindmap-min-width 2
-  "Minimal width limit for node line. Lines of this or lower length are joined with previous lines,
-e.g. 'an apple' won't be splitted into two lines 'an' and 'apple' if this var is set to 2 or more."
+  "Minimal width for joining short lines.
+Lines of this length or shorter are joined with the previous
+line.  For example, with a value of 2 or more, \"an apple\"
+is kept as one line rather than being split into \"an\" and
+\"apple\"."
   :type 'integer
   :group 'org-mindmap)
 
 (defcustom org-mindmap-default-wrap-leaves 3
-  "Default value for leaves wrapping:
-- nil: don't wrap leaf nodes;
-- t: wrap leaf nodes as any other nodes;
-- a positive number (int or float): leaf node max width is multiplied by this number, allowing them
-  to be wider if it's above 1.0 or narrower if it's below 1.0.
-For example, if :max-width is 10 and :wrap-leaves is 1.5, leaf nodes soft max width is 15."
+  "Default wrapping behavior for leaf nodes.
+If nil, leaf nodes are never wrapped.
+If t, leaf nodes are wrapped like any other node.
+If a positive number (int or float), leaf node max width is
+multiplied by this factor: values above 1.0 allow wider leaves,
+values below 1.0 make them narrower.
+For example, with :max-width 10 and :wrap-leaves 1.5, leaf nodes
+have a soft max width of 15."
   :type '(choice boolean float)
   :group 'org-mindmap)
 
@@ -145,15 +152,17 @@ with the other theme colors."
     (error "`rainbow-delimiters' not found!")))
 
 (defcustom org-mindmap-color-palette-fn 'org-mindmap-color-palette-from-font-lock
-  "A function returning color string list to use for painting map subtrees.
-- 'org-mindmap-color-palette-from-font-lock — take colors from faces defined by your theme
-  for common objects like functions, variables, errors etc. Should give a good-looking result
-  if they look good for their target objects in a theme.
-- 'org-mindmap-color-palette-from-rainbow-delimiters — take colors from paren colors in
-  rainbow-delimiters, if it's installed.
-- 'org-mindmap-color-palette-rgb — just red, green and blue (may look ugly in some themes)
-- any function returning a list of strings (either color names like \"black\" or \"grey12\"
-  or RGB codes like \"#ff0000\")."
+  "Function returning a list of color strings for painting subtrees.
+Predefined options:
+- \\='org-mindmap-color-palette-from-font-lock: sample colors
+  from font-lock faces in the current theme (functions, variables,
+  errors, etc.), giving a good-looking result in most themes.
+- \\='org-mindmap-color-palette-from-rainbow-delimiters: sample
+  colors from rainbow-delimiters, if installed.
+- \\='org-mindmap-color-palette-rgb: just red, green, and blue
+  (may look ugly in some themes).
+Any function returning a list of strings is accepted: either color
+names like \"black\" or \"grey12\", or RGB codes like \"#ff0000\"."
   :type 'function
   :group 'org-mindmap)
 
@@ -200,14 +209,15 @@ with the other theme colors."
          org-mindmap-color-palette)))
 
 (defcustom org-mindmap-color-assign-fn 'org-mindmap-assign-color-by-text
-  "A function returning color string for a node by its properties and its number in a tree.
-- 'org-mindmap-assign-color-by-num — ignore node text, just count its location in the tree.
-  If you move the node in a tree, its color also changes.
-- 'org-mindmap-assign-color-by-text — the color is constant while the text does not change,
-  regardless of node's location in the tree.
-
-Both options may confuse since we would like colors to stick to nodes. But we can't reach that
-since we don't store any parsing metadata."
+  "Function returning a color string for a node by properties and index.
+Predefined options:
+- \\='org-mindmap-assign-color-by-num: assigns color based on the
+  node\\='s position in the tree; moving the node changes its color.
+- \\='org-mindmap-assign-color-by-text: assigns color based on the
+  node\\='s text content; the color stays constant when the node
+  is moved.
+Note that neither option can make colors truly stick to nodes,
+since no persistent metadata is stored."
   :type 'function
   :group 'org-mindmap)
 
