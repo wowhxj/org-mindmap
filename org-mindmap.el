@@ -1456,13 +1456,13 @@ nodes of that side."
   :keymap org-mindmap-mode-map
   (if org-mindmap-mode
       (progn
-        (add-hook 'org-metaup-hook #'org-mindmap--metaup t)
-        (add-hook 'org-metadown-hook #'org-mindmap--metadown t)
-        (add-hook 'org-metaleft-hook #'org-mindmap--metaleft t)
-        (add-hook 'org-metaright-hook #'org-mindmap--metaright t)
-        (add-hook 'org-tab-first-hook #'org-mindmap--tab t)
-        (add-hook 'org-metareturn-hook #'org-mindmap--metareturn t)
-        (add-hook 'org-ctrl-c-ctrl-c-hook #'org-mindmap--ctrl-c-ctrl-c t))
+        (add-hook 'org-metaup-hook #'org-mindmap--metaup nil t)
+        (add-hook 'org-metadown-hook #'org-mindmap--metadown nil t)
+        (add-hook 'org-metaleft-hook #'org-mindmap--metaleft nil t)
+        (add-hook 'org-metaright-hook #'org-mindmap--metaright nil t)
+        (add-hook 'org-tab-first-hook #'org-mindmap--tab nil t)
+        (add-hook 'org-metareturn-hook #'org-mindmap--metareturn nil t)
+        (add-hook 'org-ctrl-c-ctrl-c-hook #'org-mindmap--ctrl-c-ctrl-c nil t))
     (remove-hook 'org-metaup-hook #'org-mindmap--metaup t)
     (remove-hook 'org-metadown-hook #'org-mindmap--metadown t)
     (remove-hook 'org-metaleft-hook #'org-mindmap--metaleft t)
@@ -1474,11 +1474,20 @@ nodes of that side."
 (add-to-list 'org-structure-template-alist '("m" . "mindmap"))
 
 (defun org-mindmap-unload-function ()
-  "Clean up global state when `org-mindmap' is unloaded."
+  "Clean up global state when `org-mindmap' is unloaded.
+Removes entries from `minor-mode-map-alist', `minor-mode-alist',
+and `org-structure-template-alist' that `unload-feature' cannot
+reach on its own."
+  (setq minor-mode-map-alist
+        (assq-delete-all 'org-mindmap-mode minor-mode-map-alist))
+  (setq minor-mode-alist
+        (assq-delete-all 'org-mindmap-mode minor-mode-alist))
+  (setq minor-mode-list
+        (delq 'org-mindmap-mode minor-mode-list))
   (setq org-structure-template-alist
         (cl-delete "mindmap" org-structure-template-alist
                    :test #'string= :key #'cdr))
-  ;; Return nil so standard hook/keymap/variable unloading proceeds.
+  ;; Return nil so standard unloading proceeds (hook removal, etc).
   nil)
 
 (provide 'org-mindmap)

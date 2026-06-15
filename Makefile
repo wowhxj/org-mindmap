@@ -8,6 +8,7 @@ test:
 	emacs -batch -L . -l tests/test-editing.el -f ert-run-tests-batch-and-exit
 	emacs -batch -L . -l tests/test-conversion.el -f ert-run-tests-batch-and-exit
 	emacs -batch -L . -l tests/test-regressions.el -f ert-run-tests-batch-and-exit
+	emacs -batch -L . -l tests/test-unload.el -f ert-run-tests-batch-and-exit
 	emacs -batch -L . -l tests/benchmark.el
 
 benchmark:
@@ -16,6 +17,9 @@ benchmark:
 	emacs -batch -L . -l tests/benchmark.el
 	emacs -batch -L . -l tests/profile.el
 	# emacs -batch -L . -l tests/benchmark-profile.el
+
+melpa:
+	cd ~/repos/emacs/melpa & make recipes/org-mindmap & make sandbox INSTALL=org-mindmap
 
 update-test-results:
 	emacs -batch -L . -f batch-byte-compile org-mindmap-parser.el org-mindmap.el
