@@ -1,5 +1,17 @@
 ;;; Results log:  -*- lexical-binding: t; -*-
 ;;
+;; 2026-06-15:
+;; BENCHMARK RESULTS (tests/big-map.org):
+;;   Parsing:    4.63 ms
+;;   Layout:     5.78 ms
+;;   Drawing:   45.76 ms
+;;   Total:     56.17 ms
+;; BENCHMARK RESULTS (tests/medium-map.org):
+;;   Parsing:    1.73 ms
+;;   Layout:     1.02 ms
+;;   Drawing:   32.57 ms
+;;   Total:     35.32 ms
+;;
 ;; 2026-06-07:
 ;;   Parsing:    5.14 ms
 ;;   Layout:     9.82 ms

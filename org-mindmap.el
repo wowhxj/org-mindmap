@@ -157,7 +157,10 @@ with the other theme colors."
   :type 'function
   :group 'org-mindmap)
 
-(defvar org-mindmap-color-palette nil "List of colors to paint subtrees in.")
+;; Set a dummy value so that benchmarks that test individual functions
+;; won't crash.
+(defvar org-mindmap-color-palette (org-mindmap-color-palette-rgb)
+  "List of colors to paint subtrees in.")
 
 (defcustom org-mindmap-paint-tinge-fg 0.8
   "Ratio of colorization for face foreground color."
@@ -192,7 +195,7 @@ with the other theme colors."
 
 (defun org-mindmap-assign-color-by-text (node num)
   "Assign a color to a NODE by its text, regardless its NUM in the tree."
-  (let ((i (string-to-number (secure-hash 'md5 (org-mindmap-parser-node-text node)) 16)))
+  (let ((i (string-to-number (substring (secure-hash 'md5 (org-mindmap-parser-node-text node)) 0 8) 16)))
     (nth (mod i (length org-mindmap-color-palette))
          org-mindmap-color-palette)))
 
@@ -746,8 +749,7 @@ Handles legacy migration of :layout left/compact/centered."
       ;; Initialize caches
       (setq props (plist-put props :node-cache (make-hash-table :test 'eq)))
       ;; Fill in the default values.
-      (org-mindmap--populate-properties props roots)
-      )))
+      (org-mindmap--populate-properties props roots))))
 
 (defun org-mindmap--populate-properties (&optional props roots)
   "Populate PROOS plist with default properties for missing keys."

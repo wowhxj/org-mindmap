@@ -72,7 +72,7 @@ Three ─╯          ╰─ Identity  │                       ╭─ Khurasan
 constant ─╯
 #+end_expected
 
-* Test Case 6: Complex Bidirectional (Centered, wrapped) :layout centered :compacted t :max-width 12
+* Test Case 6: Complex Bidirectional (Centered, wrapped) :layout centered :compacted t :max-width 12 :wrap-leaves t
 #+begin_sexp
 ("Iran and some more words for testing" nil 
  ("One and some more words for testing" left)
@@ -122,7 +122,7 @@ One and some ─╮                            ├─ south ╯  and some
 « Hi » ── short
 #+end_expected
 
-* Test Case 10: Empty Node With Max-Width :layout top :max-width 7
+* Test Case 10: Empty Node With Max-Width :layout top :max-width 7 :wrap-leaves t
 #+begin_sexp
 ("" nil ("A long child node" right) ("B" right))
 #+end_sexp
