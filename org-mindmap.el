@@ -181,18 +181,48 @@ names like \"black\" or \"grey12\", or RGB codes like \"#ff0000\"."
   :type 'float
   :group 'org-mindmap)
 
+(defun org-mindmap--color-blend (a b &optional alpha)
+  "Blend the two colors A and B in linear space with ALPHA.
+A and B should be lists (RED GREEN BLUE), where each element is
+between 0.0 and 1.0, inclusive.  ALPHA controls the influence A
+has on the result and should be between 0.0 and 1.0, inclusive.
+
+For instance:
+
+   (org-mindmap--color-blend \\='(1 0.5 1) \\='(0 0 0) 0.75)
+      => (0.75 0.375 0.75)
+
+(A backport of the function from emacs v31.)"
+  (setq alpha (or alpha 0.5))
+  (let (blend)
+    (dotimes (i 3)
+      (push (+ (* (nth i a) alpha) (* (nth i b) (- 1 alpha))) blend))
+    (nreverse blend)))
+
+(defun org-mindmap--color-rgb-to-hex  (red green blue &optional digits-per-component)
+  "Return hexadecimal #RGB notation for the color specified by RED GREEN BLUE.
+RED, GREEN, and BLUE should be numbers between 0.0 and 1.0, inclusive.
+Optional argument DIGITS-PER-COMPONENT can be either 4 (the default)
+or 2; use the latter if you need a 24-bit specification of a color.
+
+(A backport of the function from emacs v31.)"
+  (or digits-per-component (setq digits-per-component 4))
+  (let* ((maxval (if (= digits-per-component 2) 255 65535))
+         (fmt (if (= digits-per-component 2) "#%02x%02x%02x" "#%04x%04x%04x")))
+    (format fmt (* red maxval) (* green maxval) (* blue maxval))))
+
 (defun org-mindmap--tinge-fg (face color)
   "Tinge FACE's background color with COLOR."
-  (apply #'color-rgb-to-hex
-         (color-blend
+  (apply #'org-mindmap--color-rgb-to-hex
+         (org-mindmap--color-blend
           (color-name-to-rgb (or color "black"))
           (color-name-to-rgb (or (face-foreground face nil t) "black"))
           org-mindmap-paint-tinge-fg)))
 
 (defun org-mindmap--tinge-bg (face color)
   "Tinge FACE's background color with COLOR."
-  (apply #'color-rgb-to-hex
-         (color-blend
+  (apply #'org-mindmap--color-rgb-to-hex
+         (org-mindmap--color-blend
           (color-name-to-rgb (or color "black"))
           (color-name-to-rgb (or (face-background face nil t) "black"))
           org-mindmap-paint-tinge-bg)))
@@ -473,7 +503,7 @@ Return (width height . lines) cons cell."
 
 (defun org-mindmap--shift-subtree-rows (node delta)
   "Shift rows of NODE and all its descendants by DELTA."
-  (incf (org-mindmap-parser-node-row node) delta)
+  (cl-incf (org-mindmap-parser-node-row node) delta)
   (dolist (child (org-mindmap-parser-node-children node))
     (org-mindmap--shift-subtree-rows child delta)))
 
@@ -510,7 +540,7 @@ Requires PREV-NODE (may be nil) and map PROPS."
                      ;; Get the relative occupancy, then shift it by delta
                      (subtree-rel-occ (org-mindmap--get-subtree-occupancy node props)))
                 (while (org-mindmap--check-overlap-subtree subtree-rel-occ row delta occupied-map)
-                  (incf delta))
+                  (cl-incf delta))
                 delta)
             ;; ... otherwise just take the next unoccupied row
             (let ((d 0))
@@ -551,8 +581,8 @@ Requires PREV-NODE (may be nil) and map PROPS."
          (root-row (max l-middle r-middle))
          (l-shift (- root-row l-middle))
          (r-shift (- root-row r-middle)))
-    (dolist (n left-descendants) (incf (org-mindmap-parser-node-row n) l-shift))
-    (dolist (n right-descendants) (incf (org-mindmap-parser-node-row n) r-shift))
+    (dolist (n left-descendants) (cl-incf (org-mindmap-parser-node-row n) l-shift))
+    (dolist (n right-descendants) (cl-incf (org-mindmap-parser-node-row n) r-shift))
     root-row))
 
 (defun org-mindmap-build-subtree (node col props)
@@ -612,8 +642,8 @@ Requires starting COL and map PROPS."
            (min-r (org-mindmap--min-row all-nodes))
            (min-c (org-mindmap--min-column all-nodes)))
       (dolist (n all-nodes)
-        (decf (org-mindmap-parser-node-row n) min-r)
-        (decf (org-mindmap-parser-node-col n) min-c))
+        (cl-decf (org-mindmap-parser-node-row n) min-r)
+        (cl-decf (org-mindmap-parser-node-col n) min-c))
       all-nodes)))
 
 (defun org-mindmap--connector-symbol (has-above has-below has-left has-right)
@@ -854,7 +884,7 @@ Handles multi-line wrapped nodes, left/right padding, and root delimiters."
                                          (when (< remaining len)
                                            (cl-return (string-width (substring trimmed 0 remaining))))
                                          (setq remaining (- remaining len))
-                                         (incf row-offset)))
+                                         (cl-incf row-offset)))
                               0)))
     (org-mindmap-parser--debug "Restoring position at %s: row=%d col=%d"
                                (org-mindmap-parser-node-text node) row-offset col-offset)

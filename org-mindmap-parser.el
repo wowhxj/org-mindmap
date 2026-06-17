@@ -433,7 +433,7 @@ When KEEP-EMPTY is non-nil, empty text is returned rather than nil."
             (setq offset (max 0 (- len offset)))
             (org-mindmap-parser--debug "... which is %d counting from the left side" offset))
           (when (and base-offset offset)
-            (incf offset base-offset)
+            (cl-incf offset base-offset)
             (org-mindmap-parser--debug "... which is %d for the node text" offset))
           (cons trimmed (cons leftmost-col (cons curr-col offset))))))))
 
@@ -616,7 +616,7 @@ VISITED tracks consumed cells, POINT-ROW/POINT-COL handle cursor offset."
                (setf (org-mindmap-parser-node-text node) (concat (org-mindmap-parser-node-text node) " " text))
                (when (eq side 'left)
                  (setf (org-mindmap-parser-node-col node) leftmost-col))
-               (incf i)
+               (cl-incf i)
                (when-let* ((offset (cdddr result)))
                  (setf (org-mindmap-parser-node-point-offset node) offset)))
              found-text))))
