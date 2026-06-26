@@ -2,6 +2,18 @@
 
 * 0.3
 
+** Image export
+- New =:file= block parameter exports the map to an image on redraw
+  (=C-c C-c=), rendering the same layout and colors as an SVG with
+  rounded node boxes and curved connectors.  =.svg= is written directly;
+  =.png=/=.pdf= are converted via an external tool (=rsvg-convert=,
+  =magick=, =convert=, or =inkscape=) with graceful fallback to =.svg=.
+- A =#+RESULTS= block linking the image is inserted and kept up to date
+  below the map; the optional =:width N= parameter controls its
+  =#+ATTR_*= attribute lines.
+- New =org-mindmap-svg= customization group (cell size, fonts, corner
+  radius, stroke width, background, converters).
+
 ** Breaking changes
 - Package now requires Emacs 29.1 or later (previously 26.1).
 - =:layout= values =left= and =compact= are deprecated; use =:layout top=

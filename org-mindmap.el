@@ -35,6 +35,7 @@
 (require 'cl-lib)
 (require 'org)
 (require 'org-mindmap-parser)
+(require 'org-mindmap-svg)
 
 (defgroup org-mindmap nil
   "Editable mindmap visualization within `org-mode'."
@@ -991,7 +992,10 @@ Uses PROPS for rendering."
     "Align"
     (org-mindmap-parser--debug "Start aligning...")
     (cl-destructuring-bind (start end props roots target-node) (org-mindmap--get-state)
-      (org-mindmap--update-buffer start end roots target-node props))
+      (org-mindmap--update-buffer start end roots target-node props)
+      ;; Export to an image when the block header carries `:file'.
+      (when (plist-get props :file)
+        (org-mindmap-export-maybe start end roots props)))
     (org-mindmap-parser--debug "Finish aligning.")))
 
 ;;

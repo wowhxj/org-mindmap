@@ -241,6 +241,43 @@ You'll need a font which sets width for those characters to be exactly double of
 ** Right-to-Left
 Right-to-left text may work, but it was not tested. If you have bugs or, on the opposite, can confirm that it works, please report.
 
+* Exporting to an image
+While the map itself is just text and needs no rendering, you can also export it to a nice-looking image (rounded node boxes joined by curved connectors), reusing the same layout and colors as the text map so the picture matches it node-for-node.
+
+Add a =:file= property to the block header pointing at the target path. On the next redraw (=C-c C-c=), the map is exported to that file:
+#+begin_src
+,#+begin_mindmap :file map.svg
+⏴ Root node ⏵ ┬─ First node
+              ╰─ Second node
+,#+end_mindmap
+#+end_src
+
+The output format is taken from the file extension:
+- =.svg= is written directly and needs no external tools;
+- =.png= and =.pdf= are produced by converting the SVG with the first available external tool (=rsvg-convert=, =magick=, =convert=, or =inkscape=). If none is installed, a sibling =.svg= file is written instead and a message is shown — export never fails just because a converter is missing.
+
+After exporting, a =#+RESULTS= block linking the image is inserted (and kept up to date) right below the map. Add an optional =:width N= property to control the attributes of that block:
+#+begin_src
+,#+begin_mindmap :file map.png :width 400
+⏴ Root node ⏵ ── A child
+,#+end_mindmap
+#+end_src
+produces:
+#+begin_src
+,#+RESULTS:
+,#+begin_results
+,#+CAPTION:
+,#+ATTR_ORG: :width 400
+,#+ATTR_LATEX: :width 0.5\linewidth :float nil
+,#+ATTR_HTML: :width 400 :class zoomImage :border 1
+[[file:map.png]]
+,#+end_results
+#+end_src
+
+Without =:width=, only a plain =#+RESULTS:= line and a =[[file:...]]= link are inserted.
+
+Image appearance is configurable via the =org-mindmap-svg= customization group (cell size, fonts, corner radius, stroke width, background, and the list of SVG converters).
+
 * Examples
 Here's one more complex example mindmap for a chapter from Sönke Ahrens — How to Take Smart Notes.
 #+begin_src 
