@@ -324,17 +324,20 @@ When WIDTH is non-nil, emit a full results block with `#+ATTR_*' lines."
 (defun org-mindmap-export-insert-results (end file width)
   "Insert or replace a `#+RESULTS' block after the map ending at END.
 FILE is the link target; WIDTH controls attribute lines.  Idempotent:
-an existing results block immediately following the map is replaced."
+an existing results block (with any leading blank lines) immediately
+following the map is replaced, leaving exactly one blank separator line
+between `#+end_mindmap' and `#+RESULTS:'."
   (save-excursion
     (goto-char end)
     (forward-line 1)
-    (let ((block-start (point)))
-      ;; Skip a single blank separator line if present.
-      (when (looking-at-p "^[ \t]*$")
-        (forward-line 1))
-      (when (looking-at-p "^[ \t]*#\\+RESULTS:")
-        ;; Delete the existing results block.
-        (let ((res-start (line-beginning-position)))
+    (let ((seg-start (point)))
+      ;; Remove an existing results block, consuming any leading blank
+      ;; separator lines so repeated runs don't accumulate blanks.
+      (save-excursion
+        (goto-char seg-start)
+        (while (and (not (eobp)) (looking-at-p "^[ \t]*$"))
+          (forward-line 1))
+        (when (looking-at-p "^[ \t]*#\\+RESULTS:")
           (forward-line 1)
           (cond
            ;; begin_results ... end_results form
@@ -345,11 +348,10 @@ an existing results block immediately following the map is replaced."
            (t
             (while (and (not (eobp)) (not (looking-at-p "^[ \t]*$")))
               (forward-line 1))))
-          (delete-region res-start (point))
-          (setq block-start res-start)))
-      (goto-char block-start)
-      (unless (bolp) (insert "\n"))
-      (insert (org-mindmap-export--results-string file width)))))
+          (delete-region seg-start (point))))
+      (goto-char seg-start)
+      ;; One blank separator line, then the results block.
+      (insert "\n" (org-mindmap-export--results-string file width)))))
 
 ;;
 ;; Entry point used by `org-mindmap-align'
